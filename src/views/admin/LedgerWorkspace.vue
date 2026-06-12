@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <h2>培训台账</h2>
-        <p>一张表管排班、执行、考核、评价、课卷和导出前检查。</p>
+        <p>一张表管排班、执行、考核、评价、资料归档和导出前检查。</p>
       </div>
       <div class="header-actions">
         <el-button>导入Excel/企微表</el-button>
@@ -21,7 +21,7 @@
       </el-col>
       <el-col :span="6">
         <el-card shadow="never">
-          <el-statistic title="完成率" :value="stats.completionRate">
+          <el-statistic title="闭环率" :value="stats.completionRate">
             <template #suffix>%</template>
           </el-statistic>
         </el-card>
@@ -53,10 +53,11 @@
             </el-select>
             <el-select v-model="statusFilter" style="width: 140px">
               <el-option label="全部状态" value="all" />
+              <el-option label="未完成闭环" value="incomplete" />
               <el-option label="未开始" value="upcoming" />
               <el-option label="已完成" value="completed" />
               <el-option label="已考核" value="assessed" />
-              <el-option label="已评价" value="evaluated" />
+              <el-option label="已闭环" value="evaluated" />
             </el-select>
             <el-input v-model="keyword" clearable placeholder="搜主题/导师/学员" style="width: 220px" />
           </div>
@@ -65,7 +66,7 @@
       </template>
 
       <el-table
-        :data="filteredTrainings"
+        :data="pagedTrainings"
         stripe
         style="width: 100%"
         row-key="id"
@@ -89,12 +90,12 @@
         <el-table-column label="闭环状态" width="260">
           <template #default="{ row }">
             <div class="chips">
-              <el-tag :type="getStatusType(row.status)" size="small">{{ getStatusText(row.status) }}</el-tag>
-              <el-tag :type="row.photos.length ? 'success' : 'warning'" size="small">照片 {{ row.photos.length }}/3</el-tag>
-              <el-tag :type="row.assessments.length ? 'success' : 'warning'" size="small">考核</el-tag>
-              <el-tag :type="hasStudentTutorEvaluation(row) ? 'success' : 'warning'" size="small">学员评导师</el-tag>
-              <el-tag :type="hasTutorStudentEvaluation(row) ? 'success' : 'warning'" size="small">导师评学员</el-tag>
-              <el-tag :type="row.coursewares.length ? 'success' : 'warning'" size="small">课卷</el-tag>
+              <el-tag :type="getTrainingDisplayType(row)" size="small">{{ getTrainingDisplayStatus(row) }}</el-tag>
+              <el-tag :type="hasExecutionMaterials(row) ? 'success' : 'warning'" size="small">资料 {{ row.photos.length }}/3</el-tag>
+              <el-tag :type="hasCompleteAssessments(row) ? 'success' : 'warning'" size="small">考核</el-tag>
+              <el-tag :type="hasCompleteStudentTutorEvaluations(row) ? 'success' : 'warning'" size="small">学员评导师</el-tag>
+              <el-tag :type="hasCompleteTutorStudentEvaluations(row) ? 'success' : 'warning'" size="small">导师评学员</el-tag>
+              <el-tag size="small" effect="plain">资料 {{ row.coursewares.length }} 份</el-tag>
             </div>
           </template>
         </el-table-column>
@@ -109,6 +110,18 @@
           </template>
         </el-table-column>
       </el-table>
+
+      <div class="pagination-row">
+        <span class="pagination-total">共 {{ filteredTrainings.length }} 场</span>
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50]"
+          :total="filteredTrainings.length"
+          layout="sizes, prev, pager, next"
+          background
+        />
+      </div>
     </el-card>
 
     <el-drawer
@@ -203,8 +216,8 @@
                 <el-tag size="small">{{ file.type }}</el-tag>
               </div>
             </div>
-            <el-empty v-else description="暂无课卷" />
-            <el-button type="primary" class="full-button">上传/替换课卷</el-button>
+            <el-empty v-else description="暂无课件资料，不影响台账闭环" />
+            <el-button type="primary" class="full-button">上传/替换课件资料</el-button>
           </el-tab-pane>
         </el-tabs>
 
@@ -218,22 +231,29 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   trainingPlans,
   getDashboardStats,
-  getStatusText,
-  getStatusType,
+  getTrainingDisplayStatus,
+  getTrainingDisplayType,
   getTrainingGaps,
   getTodoItems,
-  hasStudentTutorEvaluation,
-  hasTutorStudentEvaluation
+  hasCompleteAssessments,
+  hasCompleteStudentTutorEvaluations,
+  hasCompleteTutorStudentEvaluations,
+  hasExecutionMaterials,
+  isTrainingClosed
 } from '../../api/mockData'
 
+const route = useRoute()
 const studioFilter = ref('all')
 const statusFilter = ref('all')
 const keyword = ref('')
+const currentPage = ref(1)
+const pageSize = ref(10)
 const drawerVisible = ref(false)
 const drawerTab = ref('execution')
 const selectedTraining = ref(null)
@@ -249,11 +269,17 @@ const draft = reactive({
 
 const filteredTrainings = computed(() => trainingPlans.filter(plan => {
   const studioMatch = studioFilter.value === 'all' || plan.studio === studioFilter.value
-  const statusMatch = statusFilter.value === 'all' || plan.status === statusFilter.value
+  const statusMatch = statusFilter.value === 'all'
+    || (statusFilter.value === 'incomplete' && isIncompleteTraining(plan))
+    || plan.status === statusFilter.value
   const text = `${plan.courseName} ${plan.tutor} ${plan.students.join(' ')}`
   const keywordMatch = !keyword.value || text.includes(keyword.value)
   return studioMatch && statusMatch && keywordMatch
 }))
+const pagedTrainings = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredTrainings.value.slice(start, start + pageSize.value)
+})
 
 const stats = computed(() => getDashboardStats(filteredTrainings.value))
 const todos = computed(() => getTodoItems(filteredTrainings.value))
@@ -262,9 +288,13 @@ const drawerHint = computed(() => {
   return gaps.length ? `当前待补：${gaps.join('、')}` : '这场培训的台账信息已齐。'
 })
 
-const openDrawer = (row) => {
+const isIncompleteTraining = (plan) => {
+  return !isTrainingClosed(plan)
+}
+
+const openDrawer = (row, preferredTab = '') => {
   selectedTraining.value = row
-  drawerTab.value = getTrainingGaps(row).includes('待录考核') ? 'assessment' : 'execution'
+  drawerTab.value = preferredTab || (getTrainingGaps(row).includes('待录考核') ? 'assessment' : 'execution')
   draft.completed = ['completed', 'assessed', 'evaluated'].includes(row.status)
   draft.purpose = row.purpose
   draft.resultCheck = row.resultCheck
@@ -308,6 +338,20 @@ const saveDraft = () => {
   ElMessage.success('已保存到台账原型，真实写入待接后端')
   drawerVisible.value = false
 }
+
+const openRouteTraining = () => {
+  const trainingId = Number(route.query.trainingId)
+  if (!trainingId) return
+  const row = trainingPlans.find(plan => plan.id === trainingId)
+  if (!row) return
+  const preferredTab = typeof route.query.tab === 'string' ? route.query.tab : ''
+  openDrawer(row, preferredTab)
+}
+
+watch([studioFilter, statusFilter, keyword, pageSize], () => {
+  currentPage.value = 1
+})
+watch(() => [route.query.trainingId, route.query.tab], openRouteTraining, { immediate: true })
 </script>
 
 <style scoped>
@@ -390,5 +434,18 @@ const saveDraft = () => {
 .drawer-footer {
   justify-content: flex-end;
   margin-top: 20px;
+}
+
+.pagination-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.pagination-total {
+  color: #909399;
+  font-size: 12px;
 }
 </style>

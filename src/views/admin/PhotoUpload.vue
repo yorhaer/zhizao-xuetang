@@ -3,21 +3,21 @@
     <el-row :gutter="16" class="summary-row">
       <el-col :span="8">
         <el-card shadow="never">
-          <el-statistic title="待标记完成" :value="pendingComplete.length">
+          <el-statistic title="自动闭环" :value="autoClosedTrainings.length">
             <template #suffix>场</template>
           </el-statistic>
         </el-card>
       </el-col>
       <el-col :span="8">
         <el-card shadow="never">
-          <el-statistic title="缺现场照片" :value="missingPhotos.length">
+          <el-statistic title="人工闭环" :value="manualClosedTrainings.length">
             <template #suffix>场</template>
           </el-statistic>
         </el-card>
       </el-col>
       <el-col :span="8">
         <el-card shadow="never">
-          <el-statistic title="待录考核" :value="missingAssessments.length">
+          <el-statistic title="待补闭环" :value="openTrainings.length">
             <template #suffix>场</template>
           </el-statistic>
         </el-card>
@@ -35,7 +35,7 @@
         </div>
       </template>
 
-      <el-table :data="trainings" stripe style="width: 100%" @row-click="selectTraining">
+      <el-table :data="pagedTrainings" stripe style="width: 100%" @row-click="selectTraining">
         <el-table-column prop="courseName" label="培训主题" min-width="180" />
         <el-table-column prop="tutor" label="导师" width="90" />
         <el-table-column label="日期时间" width="180">
@@ -46,7 +46,7 @@
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">{{ getStatusText(row.status) }}</el-tag>
+            <el-tag :type="getTrainingDisplayType(row)">{{ getTrainingDisplayStatus(row) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="照片" width="100">
@@ -57,7 +57,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="executionRemark" label="执行备注" min-width="220" show-overflow-tooltip />
-        <el-table-column label="缺口" min-width="180">
+        <el-table-column label="闭环缺口" min-width="180">
           <template #default="{ row }">
             <template v-if="getTrainingGaps(row).length">
               <el-tag
@@ -70,18 +70,30 @@
                 {{ gap }}
               </el-tag>
             </template>
-            <span v-else class="muted">已闭环</span>
+            <span v-else class="ok-text">{{ row.manualClosed ? '人工确认闭环' : '已闭环' }}</span>
           </template>
         </el-table-column>
       </el-table>
+
+      <div class="pagination-row">
+        <span class="pagination-total">共 {{ trainings.length }} 场</span>
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50]"
+          :total="trainings.length"
+          layout="sizes, prev, pager, next"
+          background
+        />
+      </div>
     </el-card>
 
     <el-card class="detail-card" shadow="never">
       <template #header>
         <div class="card-header">
           <span>{{ selectedTraining ? `${selectedTraining.courseName} - 执行详情` : '执行详情' }}</span>
-          <el-tag v-if="selectedTraining" :type="getStatusType(selectedTraining.status)">
-            {{ getStatusText(selectedTraining.status) }}
+          <el-tag v-if="selectedTraining" :type="getTrainingDisplayType(selectedTraining)">
+            {{ getTrainingDisplayStatus(selectedTraining) }}
           </el-tag>
         </div>
       </template>
@@ -97,6 +109,15 @@
           <el-descriptions-item label="时间">{{ selectedTraining.startTime }}-{{ selectedTraining.endTime }}</el-descriptions-item>
           <el-descriptions-item label="来源">{{ selectedTraining.source }}</el-descriptions-item>
         </el-descriptions>
+
+        <el-alert
+          :title="closureTitle"
+          :description="closureDescription"
+          :type="isTrainingClosed(selectedTraining) ? 'success' : 'warning'"
+          :closable="false"
+          show-icon
+          class="closure-alert"
+        />
 
         <el-form :model="executionForm" label-width="110px" class="execution-form">
           <el-form-item label="完成状态">
@@ -118,6 +139,21 @@
               type="textarea"
               :rows="3"
               placeholder="缺席、顺延、补排等情况在这里说明"
+            />
+          </el-form-item>
+          <el-form-item label="人工闭环">
+            <el-switch
+              v-model="executionForm.manualClosed"
+              active-text="确认闭环"
+              inactive-text="继续待补"
+            />
+          </el-form-item>
+          <el-form-item v-if="executionForm.manualClosed" label="闭环说明">
+            <el-input
+              v-model="executionForm.manualCloseReason"
+              type="textarea"
+              :rows="2"
+              placeholder="说明为何允许在资料未齐时闭环，例如纸质材料已归档、线下已确认"
             />
           </el-form-item>
         </el-form>
@@ -161,7 +197,14 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useUserStore } from '../../stores/user'
-import { trainingPlans, getStatusText, getStatusType, getTrainingGaps } from '../../api/mockData'
+import {
+  trainingPlans,
+  getTrainingDisplayStatus,
+  getTrainingDisplayType,
+  getTrainingGaps,
+  isTrainingAutoClosed,
+  isTrainingClosed
+} from '../../api/mockData'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 
@@ -170,21 +213,30 @@ const trainings = ref([])
 const selectedTraining = ref(null)
 const saving = ref(false)
 const fileList = ref([])
+const currentPage = ref(1)
+const pageSize = ref(10)
 
 const executionForm = reactive({
   completed: false,
   purpose: '',
   resultCheck: '',
-  executionRemark: ''
+  executionRemark: '',
+  manualClosed: false,
+  manualCloseReason: ''
 })
 
-const pendingComplete = computed(() => trainings.value.filter(item => item.status === 'upcoming'))
-const missingPhotos = computed(() => trainings.value.filter(item => ['completed', 'assessed'].includes(item.status) && item.photos.length === 0))
-const missingAssessments = computed(() => trainings.value.filter(item => item.status === 'completed' && item.assessments.length === 0))
+const autoClosedTrainings = computed(() => trainings.value.filter(item => isTrainingAutoClosed(item) && !item.manualClosed))
+const manualClosedTrainings = computed(() => trainings.value.filter(item => item.manualClosed))
+const openTrainings = computed(() => trainings.value.filter(item => !isTrainingClosed(item)))
+const pagedTrainings = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return trainings.value.slice(start, start + pageSize.value)
+})
 
 const loadTrainings = () => {
   trainings.value = trainingPlans.filter(p => p.studio === userStore.currentStudio)
   selectedTraining.value = trainings.value[0] || null
+  currentPage.value = 1
   syncForm()
 }
 
@@ -200,7 +252,23 @@ const syncForm = () => {
   executionForm.purpose = selectedTraining.value.purpose
   executionForm.resultCheck = selectedTraining.value.resultCheck
   executionForm.executionRemark = selectedTraining.value.executionRemark
+  executionForm.manualClosed = Boolean(selectedTraining.value.manualClosed)
+  executionForm.manualCloseReason = selectedTraining.value.manualCloseReason || ''
 }
+
+const closureTitle = computed(() => {
+  if (!selectedTraining.value) return ''
+  if (selectedTraining.value.manualClosed) return '已由人工确认闭环'
+  if (isTrainingAutoClosed(selectedTraining.value)) return '系统已自动判定闭环'
+  return '仍有闭环数据待补'
+})
+
+const closureDescription = computed(() => {
+  if (!selectedTraining.value) return ''
+  if (selectedTraining.value.manualClosed) return selectedTraining.value.manualCloseReason || '人工确认后，该场培训计入闭环完成。'
+  const gaps = getTrainingGaps(selectedTraining.value)
+  return gaps.length ? `待补：${gaps.join('、')}` : '考核、评价和执行资料均已齐全。'
+})
 
 const handleFileChange = (file, files) => {
   const existingCount = selectedTraining.value?.photos.length || 0
@@ -219,13 +287,18 @@ const confirmSave = () => {
   if (!selectedTraining.value) return
   saving.value = true
   setTimeout(() => {
-    ElMessage.success('执行记录已保存，原型数据未写回')
+    selectedTraining.value.manualClosed = executionForm.manualClosed
+    selectedTraining.value.manualCloseReason = executionForm.manualCloseReason
+    ElMessage.success(executionForm.manualClosed ? '已人工确认闭环，原型数据仅本次会话生效' : '执行记录已保存，原型数据仅本次会话生效')
     fileList.value = []
     saving.value = false
   }, 600)
 }
 
 watch(() => userStore.currentStudio, loadTrainings)
+watch(pageSize, () => {
+  currentPage.value = 1
+})
 
 onMounted(loadTrainings)
 </script>
@@ -268,8 +341,17 @@ onMounted(loadTrainings)
   margin-bottom: 4px;
 }
 
+.ok-text {
+  color: #67c23a;
+  font-weight: 600;
+}
+
 .execution-form {
   margin-top: 18px;
+}
+
+.closure-alert {
+  margin-top: 16px;
 }
 
 .upload-section {
@@ -287,5 +369,18 @@ onMounted(loadTrainings)
 .footer-actions {
   justify-content: flex-end;
   margin-top: 18px;
+}
+
+.pagination-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.pagination-total {
+  color: #909399;
+  font-size: 12px;
 }
 </style>

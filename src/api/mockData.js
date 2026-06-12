@@ -9,7 +9,7 @@ export const trainingStatuses = {
   upcoming: { text: '未开始', type: 'info', order: 1 },
   completed: { text: '已完成', type: 'success', order: 2 },
   assessed: { text: '已考核', type: 'warning', order: 3 },
-  evaluated: { text: '已评价', type: '', order: 4 }
+  evaluated: { text: '已闭环', type: 'success', order: 4 }
 }
 
 export const tutors = [
@@ -20,12 +20,72 @@ export const tutors = [
 ]
 
 export const students = [
-  { id: 1, name: '学员A', studio: 'studio_a', company: '企业A', phone: '13100000001' },
-  { id: 2, name: '学员B', studio: 'studio_a', company: '企业B', phone: '13100000002' },
-  { id: 3, name: '学员C', studio: 'studio_a', company: '企业A', phone: '13100000003' },
-  { id: 4, name: '学员D', studio: 'studio_b', company: '企业C', phone: '13100000004' },
-  { id: 5, name: '学员E', studio: 'studio_b', company: '企业B', phone: '13100000005' },
-  { id: 6, name: '学员F', studio: 'studio_b', company: '企业C', phone: '13100000006' }
+  {
+    id: 1,
+    name: '学员A',
+    studio: 'studio_a',
+    company: '企业A',
+    phone: '13100000001',
+    roleTitle: '装配工',
+    resumeSummary: '3 年液压装配经验，熟悉阀体拆装、基础点检和现场安全规范。',
+    skillTags: ['液压阀', '拆解实操', '现场点检'],
+    certificates: ['初级工']
+  },
+  {
+    id: 2,
+    name: '学员B',
+    studio: 'studio_a',
+    company: '企业B',
+    phone: '13100000002',
+    roleTitle: '维修工',
+    resumeSummary: '参与设备维修和异常复盘，具备常见密封件更换经验。',
+    skillTags: ['设备维修', '故障复盘', '密封件更换'],
+    certificates: ['中级工']
+  },
+  {
+    id: 3,
+    name: '学员C',
+    studio: 'studio_a',
+    company: '企业A',
+    phone: '13100000003',
+    roleTitle: '见习技工',
+    resumeSummary: '新进技能培养对象，重点补齐液压阀结构识别和标准化操作。',
+    skillTags: ['结构识别', '标准作业'],
+    certificates: ['培训中']
+  },
+  {
+    id: 4,
+    name: '学员D',
+    studio: 'studio_b',
+    company: '企业C',
+    phone: '13100000004',
+    roleTitle: '机修工',
+    resumeSummary: '熟悉泵类设备日常维护，正在提升故障定位和参数判断能力。',
+    skillTags: ['柱塞泵', '设备维护', '参数判断'],
+    certificates: ['中级工']
+  },
+  {
+    id: 5,
+    name: '学员E',
+    studio: 'studio_b',
+    company: '企业B',
+    phone: '13100000005',
+    roleTitle: '质检员',
+    resumeSummary: '负责基础质量记录和检测协同，关注过程记录完整性。',
+    skillTags: ['质量记录', '检测协同'],
+    certificates: ['初级工']
+  },
+  {
+    id: 6,
+    name: '学员F',
+    studio: 'studio_b',
+    company: '企业C',
+    phone: '13100000006',
+    roleTitle: '热处理操作员',
+    resumeSummary: '参与热处理过程记录和硬度检测，需继续强化参数窗口理解。',
+    skillTags: ['热处理', '硬度检测', '过程记录'],
+    certificates: ['培训中']
+  }
 ]
 
 export const trainingPlans = [
@@ -38,8 +98,8 @@ export const trainingPlans = [
     trainingContent: '电磁阀结构、拆解步骤与常见故障排查',
     tutor: '导师A',
     tutorId: 1,
-    students: ['学员A', '学员B', '学员C'],
-    studentIds: [1, 2, 3],
+    students: ['学员A'],
+    studentIds: [1],
     startDate: '2026-06-08',
     endDate: '2026-06-08',
     startTime: '09:30',
@@ -47,9 +107,10 @@ export const trainingPlans = [
     durationHours: 2,
     location: '一号工作室',
     status: 'evaluated',
+    manualClosed: false,
     purpose: '掌握液压阀基础结构，能独立识别主要部件',
     resultCheck: '现场提问与拆解演示均通过',
-    executionRemark: '学员C实操动作需继续巩固',
+    executionRemark: '学员A已完成现场实操',
     changeLogs: [
       { time: '2026-06-07 16:20', operator: '台账用户', action: '确认授课时间', detail: '按原计划执行' }
     ],
@@ -76,19 +137,103 @@ export const trainingPlans = [
       }
     ],
     assessments: [
-      { studentId: 1, score: 85, result: '通过', remark: '结构识别准确' },
-      { studentId: 2, score: 92, result: '通过', remark: '实操熟练' },
-      { studentId: 3, score: 78, result: '通过', remark: '理论需巩固' }
+      { studentId: 1, score: 85, result: '通过', remark: '结构识别准确' }
     ],
     evaluations: [
       { type: 'student_to_tutor', studentId: 1, tutorId: 1, rating: 5, comment: '讲解清晰，实操时间充足', source: '企微导入' },
-      { type: 'student_to_tutor', studentId: 2, tutorId: 1, rating: 4, comment: '内容很多，希望节奏慢一点', source: '系统录入' },
       { type: 'tutor_to_student', studentId: 1, tutorId: 1, rating: 5, comment: '实操掌握快', source: '系统录入' }
     ]
   },
   {
-    id: 2,
+    id: 5,
     sequenceNo: 2,
+    studio: 'studio_a',
+    studioName: '一号工作室',
+    courseName: '液压阀基础知识（1）',
+    trainingContent: '电磁阀结构、拆解步骤与常见故障排查',
+    tutor: '导师A',
+    tutorId: 1,
+    students: ['学员B'],
+    studentIds: [2],
+    startDate: '2026-06-09',
+    endDate: '2026-06-09',
+    startTime: '09:30',
+    endTime: '11:30',
+    durationHours: 2,
+    location: '一号工作室',
+    status: 'assessed',
+    manualClosed: false,
+    purpose: '掌握液压阀基础结构，能独立识别主要部件',
+    resultCheck: '已完成线下考核',
+    executionRemark: '同一课程按学员分批排班',
+    changeLogs: [
+      { time: '2026-06-08 17:20', operator: '台账用户', action: '分批排班', detail: '同一导师同一课程安排第二场' }
+    ],
+    source: '系统录入',
+    photos: ['valve-site-4.jpg'],
+    coursewares: [
+      {
+        id: 1,
+        name: '液压阀结构图解.pdf',
+        type: 'PDF',
+        visibility: 'public',
+        knowledgeTags: ['液压阀', '结构识别'],
+        summary: '适合课前预习和课后复盘，重点看电磁阀主要部件和拆解顺序。',
+        url: '/courseware/valve-structure.pdf'
+      }
+    ],
+    assessments: [
+      { studentId: 2, score: 92, result: '通过', remark: '实操熟练' }
+    ],
+    evaluations: [
+      { type: 'student_to_tutor', studentId: 2, tutorId: 1, rating: 4, comment: '内容很多，希望节奏慢一点', source: '系统录入' },
+      { type: 'tutor_to_student', studentId: 2, tutorId: 1, rating: 5, comment: '拆解步骤掌握较好', source: '系统录入' }
+    ]
+  },
+  {
+    id: 6,
+    sequenceNo: 3,
+    studio: 'studio_a',
+    studioName: '一号工作室',
+    courseName: '液压阀基础知识（1）',
+    trainingContent: '电磁阀结构、拆解步骤与常见故障排查',
+    tutor: '导师A',
+    tutorId: 1,
+    students: ['学员C'],
+    studentIds: [3],
+    startDate: '2026-06-10',
+    endDate: '2026-06-10',
+    startTime: '09:30',
+    endTime: '11:30',
+    durationHours: 2,
+    location: '一号工作室',
+    status: 'completed',
+    manualClosed: false,
+    purpose: '掌握液压阀基础结构，能独立识别主要部件',
+    resultCheck: '',
+    executionRemark: '同一课程按学员分批排班，待录入考核',
+    changeLogs: [
+      { time: '2026-06-09 17:20', operator: '台账用户', action: '分批排班', detail: '同一导师同一课程安排第三场' }
+    ],
+    source: '系统录入',
+    photos: [],
+    coursewares: [
+      {
+        id: 1,
+        name: '液压阀结构图解.pdf',
+        type: 'PDF',
+        visibility: 'public',
+        knowledgeTags: ['液压阀', '结构识别'],
+        summary: '适合课前预习和课后复盘，重点看电磁阀主要部件和拆解顺序。',
+        url: '/courseware/valve-structure.pdf'
+      }
+    ],
+    assessments: [],
+    evaluations: []
+  },
+  {
+    id: 2,
+    sequenceNo: 4,
     studio: 'studio_a',
     studioName: '一号工作室',
     courseName: '液压阀基础知识（2）',
@@ -104,9 +249,11 @@ export const trainingPlans = [
     durationHours: 2,
     location: '一号工作室',
     status: 'completed',
+    manualClosed: true,
+    manualCloseReason: '线下记录已确认完整，评价与考核由纸质表留存。',
     purpose: '能判断常见密封失效原因',
     resultCheck: '',
-    executionRemark: '已完成培训，待录入考核',
+    executionRemark: '已执行培训，待录入考核',
     changeLogs: [
       { time: '2026-06-10 09:12', operator: '导师B', action: '改期', detail: '因现场抢修，课程从 2026-06-11 调整至 2026-06-12' }
     ],
@@ -118,7 +265,7 @@ export const trainingPlans = [
   },
   {
     id: 3,
-    sequenceNo: 3,
+    sequenceNo: 5,
     studio: 'studio_b',
     studioName: '二号工作室',
     courseName: '柱塞泵工作原理',
@@ -134,6 +281,7 @@ export const trainingPlans = [
     durationHours: 2,
     location: '二号工作室',
     status: 'assessed',
+    manualClosed: false,
     purpose: '掌握柱塞泵故障识别方法',
     resultCheck: '已完成线下考核',
     executionRemark: '缺少学员评价',
@@ -161,7 +309,7 @@ export const trainingPlans = [
   },
   {
     id: 4,
-    sequenceNo: 4,
+    sequenceNo: 6,
     studio: 'studio_b',
     studioName: '二号工作室',
     courseName: '铜铬锆合金热处理',
@@ -177,6 +325,7 @@ export const trainingPlans = [
     durationHours: 2,
     location: '二号工作室',
     status: 'upcoming',
+    manualClosed: false,
     purpose: '熟悉热处理关键参数',
     resultCheck: '',
     executionRemark: '',
@@ -210,6 +359,51 @@ export function getStatusType(status) {
   return trainingStatuses[status]?.type || ''
 }
 
+export function hasCompleteAssessments(plan) {
+  if (!plan.studentIds.length) return false
+  return plan.studentIds.every(studentId => plan.assessments.some(item => item.studentId === studentId))
+}
+
+export function hasExecutionMaterials(plan) {
+  return plan.photos.length > 0
+}
+
+export function hasCompleteStudentTutorEvaluations(plan) {
+  if (!plan.studentIds.length) return false
+  return plan.studentIds.every(studentId =>
+    plan.evaluations.some(item => item.type === 'student_to_tutor' && item.studentId === studentId)
+  )
+}
+
+export function hasCompleteTutorStudentEvaluations(plan) {
+  if (!plan.studentIds.length) return false
+  return plan.studentIds.every(studentId =>
+    plan.evaluations.some(item => item.type === 'tutor_to_student' && item.studentId === studentId)
+  )
+}
+
+export function isTrainingAutoClosed(plan) {
+  if (!['completed', 'assessed', 'evaluated'].includes(plan.status)) return false
+  return hasExecutionMaterials(plan)
+    && hasCompleteAssessments(plan)
+    && hasCompleteStudentTutorEvaluations(plan)
+    && hasCompleteTutorStudentEvaluations(plan)
+}
+
+export function isTrainingClosed(plan) {
+  return Boolean(plan.manualClosed) || isTrainingAutoClosed(plan)
+}
+
+export function getTrainingDisplayStatus(plan) {
+  if (isTrainingClosed(plan)) return plan.manualClosed ? '人工闭环' : '已闭环'
+  return getStatusText(plan.status)
+}
+
+export function getTrainingDisplayType(plan) {
+  if (isTrainingClosed(plan)) return 'success'
+  return getStatusType(plan.status)
+}
+
 export function ratingToScore(rating) {
   const scoreMap = { 1: 20, 2: 40, 3: 60, 4: 80, 5: 100 }
   return scoreMap[rating] || 0
@@ -224,12 +418,14 @@ export function getUserTrainings(userId, role) {
 }
 
 export function getTrainingGaps(plan) {
+  if (isTrainingClosed(plan)) return []
   const gaps = []
-  if (plan.status === 'completed' && plan.assessments.length === 0) gaps.push('待录考核')
-  if (['completed', 'assessed'].includes(plan.status) && plan.photos.length === 0) gaps.push('缺现场照片')
-  if (plan.coursewares.length === 0) gaps.push('缺课卷')
-  if (['completed', 'assessed'].includes(plan.status) && !hasStudentTutorEvaluation(plan)) gaps.push('缺学员评价')
-  if (['completed', 'assessed'].includes(plan.status) && !hasTutorStudentEvaluation(plan)) gaps.push('缺导师评价')
+  const executed = ['completed', 'assessed', 'evaluated'].includes(plan.status)
+  const assessmentStage = ['completed', 'assessed', 'evaluated'].includes(plan.status)
+  if (plan.status === 'completed' && !hasCompleteAssessments(plan)) gaps.push('待录考核')
+  if (executed && !hasExecutionMaterials(plan)) gaps.push('缺执行资料')
+  if (assessmentStage && !hasCompleteStudentTutorEvaluations(plan)) gaps.push('缺学员评价')
+  if (assessmentStage && !hasCompleteTutorStudentEvaluations(plan)) gaps.push('缺导师评价')
   return gaps
 }
 
@@ -265,12 +461,12 @@ export function getTodoItems(plans = trainingPlans) {
     title: gap,
     courseName: plan.courseName,
     date: plan.startDate,
-    owner: gap.includes('课卷') || gap.includes('导师') ? plan.tutor : '台账用户'
+    owner: gap.includes('导师') ? plan.tutor : '台账用户'
   })))
 }
 
 export function getDashboardStats(plans = trainingPlans) {
-  const completed = plans.filter(plan => ['completed', 'assessed', 'evaluated'].includes(plan.status))
+  const completed = plans.filter(plan => isTrainingClosed(plan))
   const assessed = plans.filter(plan => ['assessed', 'evaluated'].includes(plan.status))
   const scores = plans.flatMap(plan => plan.assessments.map(item => item.score))
   const ratings = plans.flatMap(plan => plan.evaluations.filter(item => item.type === 'student_to_tutor').map(item => item.rating))

@@ -21,9 +21,9 @@
       <div class="stat-card">
         <div class="stat-icon green">✅</div>
         <div class="stat-content">
-          <div class="stat-label">已完成</div>
+          <div class="stat-label">已闭环</div>
           <div class="stat-value">{{ stats.completedTraining }}<sup>场</sup></div>
-          <div class="stat-note">{{ stats.completionRate }}% 完成率</div>
+          <div class="stat-note">{{ stats.completionRate }}% 闭环率</div>
         </div>
       </div>
       <div class="stat-card">
@@ -67,7 +67,7 @@
 
       <div class="section-card">
         <div class="section-card-header">
-          <h3>📈 近3个月完成率趋势</h3>
+          <h3>📈 近3个月闭环率趋势</h3>
         </div>
         <div class="trend-bars">
           <div v-for="item in trend" :key="item.month" class="trend-row">
