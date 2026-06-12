@@ -35,7 +35,7 @@
           </div>
           <div class="metric-block">
             <div class="metric-num success">{{ studio.completedTraining }}</div>
-            <div class="metric-desc">已完成</div>
+            <div class="metric-desc">已闭环</div>
           </div>
           <div class="metric-block">
             <div class="metric-num warning">{{ studio.avgScore.toFixed(1) }}</div>
@@ -139,7 +139,7 @@ const peopleStats = computed(() => ({
 
 const comparisonData = computed(() => [
   { metric: '培训总次数', studio_a: studio_aStats.value.totalTraining, studio_b: studio_bStats.value.totalTraining, difference: studio_aStats.value.totalTraining - studio_bStats.value.totalTraining },
-  { metric: '已完成培训', studio_a: studio_aStats.value.completedTraining, studio_b: studio_bStats.value.completedTraining, difference: studio_aStats.value.completedTraining - studio_bStats.value.completedTraining },
+  { metric: '已闭环培训', studio_a: studio_aStats.value.completedTraining, studio_b: studio_bStats.value.completedTraining, difference: studio_aStats.value.completedTraining - studio_bStats.value.completedTraining },
   { metric: '平均成绩', studio_a: studio_aStats.value.avgScore, studio_b: studio_bStats.value.avgScore, difference: parseFloat((studio_aStats.value.avgScore - studio_bStats.value.avgScore).toFixed(1)) },
   { metric: '平均评分', studio_a: studio_aStats.value.avgRating, studio_b: studio_bStats.value.avgRating, difference: parseFloat((studio_aStats.value.avgRating - studio_bStats.value.avgRating).toFixed(1)) },
   { metric: '学员总数', studio_a: peopleStats.value.studio_a.students, studio_b: peopleStats.value.studio_b.students, difference: peopleStats.value.studio_a.students - peopleStats.value.studio_b.students },

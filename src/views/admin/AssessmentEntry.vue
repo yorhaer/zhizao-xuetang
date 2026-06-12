@@ -42,7 +42,7 @@
         </div>
       </template>
 
-      <el-empty v-if="!selectedTraining" description="请选择一场已完成培训" />
+      <el-empty v-if="!selectedTraining" description="请选择一场已执行培训" />
 
       <template v-else>
         <el-descriptions :column="3" border class="training-info">

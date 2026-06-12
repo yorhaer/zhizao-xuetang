@@ -10,14 +10,14 @@
       </el-col>
       <el-col :span="6">
         <el-card shadow="never">
-          <el-statistic title="已完成" :value="stats.completedTraining">
+          <el-statistic title="已闭环" :value="stats.completedTraining">
             <template #suffix>场</template>
           </el-statistic>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="never">
-          <el-statistic title="完成率" :value="stats.completionRate">
+          <el-statistic title="闭环率" :value="stats.completionRate">
             <template #suffix>%</template>
           </el-statistic>
         </el-card>
@@ -39,32 +39,80 @@
         </div>
       </template>
       <div v-if="studioTodos.length" class="todo-list">
-        <el-tag
+        <button
           v-for="todo in studioTodos"
           :key="todo.id"
-          effect="plain"
-          class="todo-tag"
-          type="warning"
+          type="button"
+          class="todo-action"
+          @click="handleTodo(todo)"
         >
-          {{ todo.courseName }}：{{ todo.title }}（{{ todo.owner }}）
-        </el-tag>
+          <span class="todo-action-title">{{ todo.courseName }}：{{ todo.title }}</span>
+          <span class="todo-action-meta">{{ todo.date }} · {{ todo.owner }} · 去处理</span>
+        </button>
       </div>
       <el-empty v-else description="当前没有待补数据" />
+    </el-card>
+
+    <el-card class="week-card" shadow="never">
+      <template #header>
+        <div class="card-header">
+          <div>
+            <span class="card-title">周排班视图</span>
+            <span class="card-subtitle">{{ weekRangeText }}，共 {{ weekTrainingCount }} 场</span>
+          </div>
+          <div class="header-actions">
+            <el-button @click="shiftWeek(-1)">上一周</el-button>
+            <el-button @click="goCurrentWeek">本周</el-button>
+            <el-button @click="shiftWeek(1)">下一周</el-button>
+          </div>
+        </div>
+      </template>
+
+      <div class="week-grid">
+        <button
+          v-for="day in weekDays"
+          :key="day.date"
+          type="button"
+          :class="['week-day', { 'week-day--today': day.isToday, 'week-day--active': selectedDate === day.date }]"
+          @click="selectWeekDay(day.date)"
+        >
+          <div class="week-day-head">
+            <span>{{ day.label }}</span>
+            <strong>{{ day.monthDay }}</strong>
+          </div>
+          <div class="week-day-count">{{ day.sessions.length }} 场</div>
+          <div v-if="day.sessions.length" class="week-session-list">
+            <div v-for="session in day.sessions.slice(0, 3)" :key="session.id" class="week-session">
+              <div class="week-session-title">{{ session.courseName }}</div>
+              <div class="week-session-meta">
+                {{ session.startTime }} · {{ session.tutor }} · {{ session.students.join('、') }}
+              </div>
+            </div>
+            <div v-if="day.sessions.length > 3" class="week-more">
+              还有 {{ day.sessions.length - 3 }} 场
+            </div>
+          </div>
+          <div v-else class="week-empty">暂无排班</div>
+        </button>
+      </div>
     </el-card>
 
     <el-card shadow="never">
       <template #header>
         <div class="card-header">
           <div>
-            <span class="card-title">培训台账</span>
-            <span class="card-subtitle">按 Excel 台账字段组织，优先减少重复翻表</span>
+            <span class="card-title">排班列表</span>
+            <span class="card-subtitle">
+              {{ selectedDate ? `${selectedDate} 的排班` : '按 Excel 台账字段组织，优先减少重复翻表' }}
+            </span>
           </div>
           <div class="header-actions">
+            <el-button v-if="selectedDate" @click="clearSelectedDate">清除日期</el-button>
             <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width: 140px">
               <el-option label="未开始" value="upcoming" />
               <el-option label="已完成" value="completed" />
               <el-option label="已考核" value="assessed" />
-              <el-option label="已评价" value="evaluated" />
+              <el-option label="已闭环" value="evaluated" />
             </el-select>
             <el-button>
               导入Excel
@@ -77,7 +125,7 @@
         </div>
       </template>
 
-      <el-table :data="filteredTrainings" stripe style="width: 100%" row-key="id">
+      <el-table :data="pagedTrainings" stripe style="width: 100%" row-key="id">
         <el-table-column prop="sequenceNo" label="序号" width="70" />
         <el-table-column prop="courseName" label="培训主题" min-width="180" />
         <el-table-column prop="trainingContent" label="培训内容" min-width="220" show-overflow-tooltip />
@@ -102,8 +150,8 @@
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">
-              {{ getStatusText(row.status) }}
+            <el-tag :type="getTrainingDisplayType(row)">
+              {{ getTrainingDisplayStatus(row) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -136,6 +184,18 @@
           </template>
         </el-table-column>
       </el-table>
+
+      <div class="pagination-row">
+        <span class="pagination-total">共 {{ filteredTrainings.length }} 场</span>
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50]"
+          :total="filteredTrainings.length"
+          layout="sizes, prev, pager, next"
+          background
+        />
+      </div>
     </el-card>
 
     <el-dialog
@@ -203,13 +263,14 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
 import {
   trainingPlans,
   tutors,
   students,
-  getStatusText,
-  getStatusType,
+  getTrainingDisplayStatus,
+  getTrainingDisplayType,
   getTrainingGaps,
   getTodoItems,
   getDashboardStats
@@ -217,9 +278,14 @@ import {
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 
+const router = useRouter()
 const userStore = useUserStore()
 const trainings = ref([])
 const statusFilter = ref('')
+const selectedDate = ref('')
+const weekCursor = ref(new Date())
+const currentPage = ref(1)
+const pageSize = ref(10)
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
@@ -250,12 +316,95 @@ const rules = {
 
 const availableTutors = computed(() => tutors.filter(t => t.studio === userStore.currentStudio))
 const availableStudents = computed(() => students.filter(s => s.studio === userStore.currentStudio))
-const filteredTrainings = computed(() => statusFilter.value ? trainings.value.filter(item => item.status === statusFilter.value) : trainings.value)
+const filteredTrainings = computed(() => trainings.value.filter(item => {
+  const statusMatch = !statusFilter.value || item.status === statusFilter.value
+  const dateMatch = !selectedDate.value || item.startDate === selectedDate.value
+  return statusMatch && dateMatch
+}))
+const pagedTrainings = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredTrainings.value.slice(start, start + pageSize.value)
+})
 const studioTodos = computed(() => getTodoItems(trainings.value))
 const stats = computed(() => getDashboardStats(trainings.value))
+const weekStart = computed(() => getWeekStart(weekCursor.value))
+const weekDays = computed(() => Array.from({ length: 7 }, (_, index) => {
+  const date = addDays(weekStart.value, index)
+  const dateKey = formatDate(date)
+  return {
+    date: dateKey,
+    label: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][index],
+    monthDay: `${date.getMonth() + 1}/${date.getDate()}`,
+    isToday: dateKey === formatDate(new Date()),
+    sessions: trainings.value
+      .filter(item => item.startDate === dateKey)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime))
+  }
+}))
+const weekRangeText = computed(() => {
+  const start = weekDays.value[0]?.date
+  const end = weekDays.value[6]?.date
+  return start && end ? `${start} 至 ${end}` : ''
+})
+const weekTrainingCount = computed(() => weekDays.value.reduce((total, day) => total + day.sessions.length, 0))
+
+const formatDate = (date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const getWeekStart = (date) => {
+  const cursor = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const weekday = cursor.getDay() || 7
+  cursor.setDate(cursor.getDate() - weekday + 1)
+  return cursor
+}
+
+const addDays = (date, days) => {
+  const next = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  next.setDate(next.getDate() + days)
+  return next
+}
 
 const loadTrainings = () => {
   trainings.value = trainingPlans.filter(p => p.studio === userStore.currentStudio)
+  currentPage.value = 1
+}
+
+const shiftWeek = (offset) => {
+  weekCursor.value = addDays(weekCursor.value, offset * 7)
+}
+
+const goCurrentWeek = () => {
+  weekCursor.value = new Date()
+}
+
+const selectWeekDay = (date) => {
+  selectedDate.value = selectedDate.value === date ? '' : date
+  currentPage.value = 1
+}
+
+const clearSelectedDate = () => {
+  selectedDate.value = ''
+  currentPage.value = 1
+}
+
+const getTodoTab = (title) => {
+  if (title.includes('考核')) return 'assessment'
+  if (title.includes('评价')) return 'evaluation'
+  return 'execution'
+}
+
+const handleTodo = (todo) => {
+  router.push({
+    path: '/admin/ledger',
+    query: {
+      trainingId: todo.trainingId,
+      tab: getTodoTab(todo.title)
+    }
+  })
 }
 
 const openCreateDialog = () => {
@@ -310,7 +459,13 @@ const submitPlan = async () => {
   })
 }
 
-watch(() => userStore.currentStudio, loadTrainings)
+watch(() => userStore.currentStudio, () => {
+  selectedDate.value = ''
+  loadTrainings()
+})
+watch([statusFilter, selectedDate, pageSize], () => {
+  currentPage.value = 1
+})
 
 onMounted(loadTrainings)
 </script>
@@ -321,7 +476,8 @@ onMounted(loadTrainings)
 }
 
 .summary-row,
-.todo-card {
+.todo-card,
+.week-card {
   margin-bottom: 16px;
 }
 
@@ -354,15 +510,156 @@ onMounted(loadTrainings)
 }
 
 .todo-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
 }
 
-.todo-tag,
 .student-tag,
 .gap-tag {
   margin-right: 6px;
   margin-bottom: 4px;
+}
+
+.todo-action {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 72px;
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid #f3d19e;
+  border-radius: 8px;
+  background: #fdf6ec;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.todo-action:hover {
+  border-color: #e6a23c;
+  box-shadow: 0 6px 16px rgba(230, 162, 60, 0.15);
+  transform: translateY(-1px);
+}
+
+.todo-action-title {
+  color: #7d4f00;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.todo-action-meta {
+  color: #a36b00;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.week-day {
+  min-height: 190px;
+  padding: 12px;
+  text-align: left;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.week-day:hover {
+  border-color: #a0cfff;
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.week-day--today {
+  border-color: #67c23a;
+}
+
+.week-day--active {
+  border-color: #409eff;
+  background: #ecf5ff;
+}
+
+.week-day-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  color: #606266;
+  font-size: 13px;
+}
+
+.week-day-head strong {
+  color: #303133;
+  font-size: 14px;
+}
+
+.week-day-count {
+  margin-top: 8px;
+  color: #409eff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.week-session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.week-session {
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(64, 158, 255, 0.08);
+}
+
+.week-session-title {
+  color: #303133;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.week-session-meta,
+.week-empty,
+.week-more {
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.week-empty {
+  margin-top: 32px;
+  text-align: center;
+}
+
+.week-more {
+  text-align: center;
+}
+
+.pagination-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.pagination-total {
+  color: #909399;
+  font-size: 12px;
+}
+
+@media (max-width: 1200px) {
+  .week-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

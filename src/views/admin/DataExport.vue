@@ -27,7 +27,7 @@
       <div class="stat-card">
         <div class="stat-icon green">✅</div>
         <div class="stat-content">
-          <div class="stat-label">完成率</div>
+          <div class="stat-label">闭环率</div>
           <div class="stat-value">{{ stats.completionRate }}<sup>%</sup></div>
         </div>
       </div>
@@ -161,8 +161,7 @@ const gapCounts = computed(() => {
   const gaps = scopedPlans.value.flatMap(plan => getTrainingGaps(plan))
   return {
     assessment: gaps.filter(gap => gap.includes('考核')).length,
-    photo: gaps.filter(gap => gap.includes('照片')).length,
-    courseware: gaps.filter(gap => gap.includes('课卷')).length,
+    photo: gaps.filter(gap => gap.includes('执行资料')).length,
     evaluation: gaps.filter(gap => gap.includes('评价')).length
   }
 })
@@ -171,8 +170,7 @@ const gapBars = computed(() => {
   const max = Math.max(...Object.values(gapCounts.value), 1)
   return [
     { label: '待录考核', value: gapCounts.value.assessment },
-    { label: '缺现场照片', value: gapCounts.value.photo },
-    { label: '缺课卷', value: gapCounts.value.courseware },
+    { label: '缺执行资料', value: gapCounts.value.photo },
     { label: '缺评价', value: gapCounts.value.evaluation }
   ].map(item => ({ ...item, percent: Math.round((item.value / max) * 100) }))
 })
