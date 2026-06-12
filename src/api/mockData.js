@@ -13,10 +13,62 @@ export const trainingStatuses = {
 }
 
 export const tutors = [
-  { id: 1, name: '导师A', studio: 'studio_a', company: '工匠工作室', phone: '13000000001' },
-  { id: 2, name: '导师B', studio: 'studio_a', company: '工匠工作室', phone: '13000000002' },
-  { id: 3, name: '导师C', studio: 'studio_b', company: '工匠工作室', phone: '13000000003' },
-  { id: 4, name: '导师D', studio: 'studio_b', company: '工匠工作室', phone: '13000000004' }
+  {
+    id: 1,
+    name: '导师A',
+    studio: 'studio_a',
+    company: '工匠工作室',
+    phone: '13000000001',
+    title: '液压装配导师',
+    level: '高级技师',
+    years: 8,
+    profileSummary: '长期负责液压阀结构识别、拆解实操和现场故障复盘培训。',
+    specialtyTags: ['液压阀', '拆解实操', '故障复盘'],
+    certificates: ['高级技师', '内训师'],
+    photoMaterial: 'tutor-a-profile.jpg'
+  },
+  {
+    id: 2,
+    name: '导师B',
+    studio: 'studio_a',
+    company: '工匠工作室',
+    phone: '13000000002',
+    title: '设备维修导师',
+    level: '技师',
+    years: 6,
+    profileSummary: '擅长设备维修、密封件更换和现场抢修案例教学。',
+    specialtyTags: ['设备维修', '密封件更换', '案例教学'],
+    certificates: ['技师', '安全培训讲师'],
+    photoMaterial: 'tutor-b-profile.jpg'
+  },
+  {
+    id: 3,
+    name: '导师C',
+    studio: 'studio_b',
+    company: '工匠工作室',
+    phone: '13000000003',
+    title: '泵类设备导师',
+    level: '高级工',
+    years: 5,
+    profileSummary: '负责柱塞泵原理、压力调节和异常噪声判断相关课程。',
+    specialtyTags: ['柱塞泵', '压力调节', '异常判断'],
+    certificates: ['高级工'],
+    photoMaterial: 'tutor-c-profile.jpg'
+  },
+  {
+    id: 4,
+    name: '导师D',
+    studio: 'studio_b',
+    company: '工匠工作室',
+    phone: '13000000004',
+    title: '热处理导师',
+    level: '高级技师',
+    years: 9,
+    profileSummary: '聚焦热处理参数窗口、硬度检测和过程记录规范。',
+    specialtyTags: ['热处理', '硬度检测', '过程记录'],
+    certificates: ['高级技师', '质量内审员'],
+    photoMaterial: 'tutor-d-profile.jpg'
+  }
 ]
 
 export const students = [
@@ -407,6 +459,62 @@ export function getTrainingDisplayType(plan) {
 export function ratingToScore(rating) {
   const scoreMap = { 1: 20, 2: 40, 3: 60, 4: 80, 5: 100 }
   return scoreMap[rating] || 0
+}
+
+export function getStudentProfileSummary(studentId) {
+  const relatedTrainings = trainingPlans
+    .filter(plan => plan.studentIds.includes(studentId))
+    .map(plan => ({
+      ...plan,
+      assessment: plan.assessments.find(item => item.studentId === studentId),
+      closed: isTrainingClosed(plan)
+    }))
+    .sort((a, b) => b.startDate.localeCompare(a.startDate))
+  const scores = relatedTrainings
+    .map(plan => plan.assessment?.score)
+    .filter(score => typeof score === 'number')
+
+  return {
+    trainings: relatedTrainings,
+    latestTraining: relatedTrainings[0],
+    trainingCount: relatedTrainings.length,
+    closedCount: relatedTrainings.filter(plan => plan.closed).length,
+    avgScore: scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) : 0,
+    passCount: scores.filter(score => score >= 60).length,
+    photos: [...new Set(relatedTrainings.flatMap(plan => plan.photos))]
+  }
+}
+
+export function getTutorProfileSummary(tutorId) {
+  const relatedTrainings = trainingPlans
+    .filter(plan => plan.tutorId === tutorId)
+    .map(plan => ({
+      ...plan,
+      closed: isTrainingClosed(plan),
+      avgScore: plan.assessments.length
+        ? Math.round(plan.assessments.reduce((sum, item) => sum + item.score, 0) / plan.assessments.length)
+        : 0
+    }))
+    .sort((a, b) => b.startDate.localeCompare(a.startDate))
+  const studentIds = new Set(relatedTrainings.flatMap(plan => plan.studentIds))
+  const ratings = relatedTrainings.flatMap(plan =>
+    plan.evaluations
+      .filter(item => item.type === 'student_to_tutor')
+      .map(item => item.rating)
+  )
+
+  return {
+    trainings: relatedTrainings,
+    latestTraining: relatedTrainings[0],
+    trainingCount: relatedTrainings.length,
+    closedCount: relatedTrainings.filter(plan => plan.closed).length,
+    studentCount: studentIds.size,
+    avgRating: ratings.length ? Number((ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length).toFixed(1)) : 0,
+    ratingCount: ratings.length,
+    coursewares: [...new Map(relatedTrainings
+      .flatMap(plan => plan.coursewares.map(file => [file.name, file]))
+    ).values()]
+  }
 }
 
 export function getUserTrainings(userId, role) {

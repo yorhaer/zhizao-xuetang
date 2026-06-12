@@ -36,6 +36,11 @@ const routes = [
         component: () => import('../views/student/KnowledgeLibrary.vue')
       },
       {
+        path: 'profile',
+        name: 'StudentProfile',
+        component: () => import('../views/ProfileCenter.vue')
+      },
+      {
         path: 'courseware/:id',
         name: 'CoursewareDetail',
         component: () => import('../views/student/CoursewareDetail.vue')
@@ -76,6 +81,11 @@ const routes = [
         path: 'feedback',
         name: 'TutorFeedback',
         component: () => import('../views/tutor/FeedbackView.vue')
+      },
+      {
+        path: 'profile',
+        name: 'TutorProfile',
+        component: () => import('../views/ProfileCenter.vue')
       }
     ]
   },

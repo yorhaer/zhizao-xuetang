@@ -14,13 +14,38 @@
             </div>
           </template>
 
-          <el-table :data="currentTutors" stripe style="width: 100%">
-            <el-table-column prop="name" label="姓名" width="120" />
+          <el-table :data="tutorRows" stripe style="width: 100%">
+            <el-table-column label="导师" min-width="190">
+              <template #default="{ row }">
+                <div class="person-cell">
+                  <div class="person-photo tutor-photo">{{ row.name.slice(-1) }}</div>
+                  <div>
+                    <div class="person-name">{{ row.name }}</div>
+                    <div class="muted">{{ row.title }}</div>
+                  </div>
+                </div>
+              </template>
+            </el-table-column>
             <el-table-column prop="company" label="所属公司" width="140" />
             <el-table-column prop="phone" label="联系电话" width="150" />
-            <el-table-column label="关联培训" width="100">
+            <el-table-column label="授课情况" width="140">
               <template #default="{ row }">
-                {{ getTutorTrainingCount(row.id) }}场
+                <div>{{ row.trainingCount }} 场</div>
+                <div class="muted">闭环 {{ row.closedCount }} 场</div>
+              </template>
+            </el-table-column>
+            <el-table-column label="学员评价" width="110">
+              <template #default="{ row }">
+                <span :class="['score-text', row.avgRating >= 4.5 ? 'score-excellent' : 'score-pass']">
+                  {{ row.avgRating ? `${row.avgRating}分` : '暂无' }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column label="专长" min-width="180">
+              <template #default="{ row }">
+                <el-tag v-for="tag in row.specialtyTags.slice(0, 2)" :key="tag" size="small" class="inline-tag">
+                  {{ tag }}
+                </el-tag>
               </template>
             </el-table-column>
             <el-table-column label="工作室" width="150">
@@ -28,8 +53,9 @@
                 {{ row.studio === 'studio_a' ? '一号工作室' : '二号工作室' }}
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="150">
+            <el-table-column label="操作" width="220" fixed="right">
               <template #default="{ row }">
+                <el-button size="small" type="primary" plain @click="viewTutorProfile(row)">查看档案</el-button>
                 <el-button size="small" @click="editTutor(row)">编辑</el-button>
                 <el-button size="small" type="danger" @click="deleteTutor(row)">删除</el-button>
               </template>
@@ -54,10 +80,10 @@
           <el-table :data="studentRows" stripe style="width: 100%">
             <el-table-column label="学员" min-width="180">
               <template #default="{ row }">
-                <div class="student-cell">
-                  <div class="student-photo">{{ row.name.slice(-1) }}</div>
+                <div class="person-cell">
+                  <div class="person-photo">{{ row.name.slice(-1) }}</div>
                   <div>
-                    <div class="student-name">{{ row.name }}</div>
+                    <div class="person-name">{{ row.name }}</div>
                     <div class="muted">{{ row.roleTitle }}</div>
                   </div>
                 </div>
@@ -273,13 +299,120 @@
         </el-card>
       </template>
     </el-drawer>
+
+    <el-drawer
+      v-model="tutorProfileVisible"
+      :title="selectedTutor ? `${selectedTutor.name} · 导师档案` : '导师档案'"
+      size="760px"
+    >
+      <template v-if="selectedTutor">
+        <div class="profile-header">
+          <div class="profile-photo tutor-photo">{{ selectedTutor.name.slice(-1) }}</div>
+          <div class="profile-main">
+            <div class="profile-name-row">
+              <h3>{{ selectedTutor.name }}</h3>
+              <el-tag>{{ selectedTutor.level }}</el-tag>
+              <el-tag type="success">{{ selectedTutor.title }}</el-tag>
+            </div>
+            <div class="profile-meta">
+              {{ selectedTutor.company }} · {{ selectedTutor.phone }} · {{ selectedTutor.studio === 'studio_a' ? '一号工作室' : '二号工作室' }}
+            </div>
+            <div class="tag-row">
+              <el-tag v-for="tag in selectedTutor.specialtyTags" :key="tag" size="small" effect="plain">
+                {{ tag }}
+              </el-tag>
+            </div>
+          </div>
+        </div>
+
+        <el-row :gutter="12" class="profile-stats">
+          <el-col :span="6">
+            <el-card shadow="never">
+              <el-statistic title="授课场次" :value="tutorProfile.trainingCount" />
+            </el-card>
+          </el-col>
+          <el-col :span="6">
+            <el-card shadow="never">
+              <el-statistic title="覆盖学员" :value="tutorProfile.studentCount" />
+            </el-card>
+          </el-col>
+          <el-col :span="6">
+            <el-card shadow="never">
+              <el-statistic title="平均评价" :value="tutorProfile.avgRating || 0">
+                <template #suffix>分</template>
+              </el-statistic>
+            </el-card>
+          </el-col>
+          <el-col :span="6">
+            <el-card shadow="never">
+              <el-statistic title="闭环课程" :value="tutorProfile.closedCount" />
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <el-card shadow="never" class="profile-section">
+          <template #header>
+            <div class="card-header">
+              <span>照片与履历</span>
+              <el-tag size="small" type="info">{{ selectedTutor.photoMaterial }}</el-tag>
+            </div>
+          </template>
+          <el-descriptions :column="1" border>
+            <el-descriptions-item label="履历摘要">{{ selectedTutor.profileSummary }}</el-descriptions-item>
+            <el-descriptions-item label="教学年限">{{ selectedTutor.years }} 年</el-descriptions-item>
+            <el-descriptions-item label="证书">
+              <el-tag v-for="cert in selectedTutor.certificates" :key="cert" size="small" class="inline-tag">
+                {{ cert }}
+              </el-tag>
+            </el-descriptions-item>
+          </el-descriptions>
+        </el-card>
+
+        <el-card shadow="never" class="profile-section">
+          <template #header>
+            <div class="card-header">
+              <span>授课与反馈</span>
+              <span class="muted">按日期倒序</span>
+            </div>
+          </template>
+          <el-table :data="tutorProfile.trainings" stripe size="small" style="width: 100%">
+            <el-table-column prop="courseName" label="培训主题" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="startDate" label="日期" width="110" />
+            <el-table-column label="学员" min-width="140" show-overflow-tooltip>
+              <template #default="{ row }">{{ row.students.join('、') }}</template>
+            </el-table-column>
+            <el-table-column label="平均成绩" width="100">
+              <template #default="{ row }">
+                <span v-if="row.avgScore" :class="['score-text', getScoreClass(row.avgScore)]">
+                  {{ row.avgScore }}分
+                </span>
+                <span v-else class="muted">未录入</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="闭环" width="90">
+              <template #default="{ row }">
+                <el-tag :type="row.closed ? 'success' : 'warning'" size="small">
+                  {{ row.closed ? '已闭环' : '待补' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </template>
+    </el-drawer>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useUserStore } from '../../stores/user'
-import { tutors, students, trainingPlans, isTrainingClosed } from '../../api/mockData'
+import {
+  tutors,
+  students,
+  trainingPlans,
+  getStudentProfileSummary,
+  getTutorProfileSummary
+} from '../../api/mockData'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 
@@ -294,6 +427,8 @@ const tutorFormRef = ref(null)
 const studentFormRef = ref(null)
 const studentProfileVisible = ref(false)
 const selectedStudent = ref(null)
+const tutorProfileVisible = ref(false)
+const selectedTutor = ref(null)
 
 const tutorForm = reactive({
   id: null,
@@ -344,12 +479,27 @@ const studentRows = computed(() => currentStudents.value.map(student => ({
   ...getStudentSummary(student.id)
 })))
 
+const tutorRows = computed(() => currentTutors.value.map(tutor => ({
+  ...tutor,
+  ...getTutorSummary(tutor.id)
+})))
+
 const studentProfile = computed(() => selectedStudent.value ? getStudentSummary(selectedStudent.value.id) : {
   trainingCount: 0,
   closedCount: 0,
   avgScore: 0,
   passCount: 0,
   photos: [],
+  trainings: []
+})
+
+const tutorProfile = computed(() => selectedTutor.value ? getTutorSummary(selectedTutor.value.id) : {
+  trainingCount: 0,
+  closedCount: 0,
+  studentCount: 0,
+  avgRating: 0,
+  ratingCount: 0,
+  coursewares: [],
   trainings: []
 })
 
@@ -362,26 +512,11 @@ const getStudentTrainingCount = (studentId) => {
 }
 
 const getStudentSummary = (studentId) => {
-  const relatedTrainings = trainingPlans
-    .filter(plan => plan.studentIds.includes(studentId))
-    .map(plan => ({
-      ...plan,
-      assessment: plan.assessments.find(item => item.studentId === studentId),
-      closed: isTrainingClosed(plan)
-    }))
-    .sort((a, b) => b.startDate.localeCompare(a.startDate))
-  const scores = relatedTrainings
-    .map(plan => plan.assessment?.score)
-    .filter(score => typeof score === 'number')
-  return {
-    trainings: relatedTrainings,
-    latestTraining: relatedTrainings[0],
-    trainingCount: relatedTrainings.length,
-    closedCount: relatedTrainings.filter(plan => plan.closed).length,
-    avgScore: scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) : 0,
-    passCount: scores.filter(score => score >= 60).length,
-    photos: [...new Set(relatedTrainings.flatMap(plan => plan.photos))]
-  }
+  return getStudentProfileSummary(studentId)
+}
+
+const getTutorSummary = (tutorId) => {
+  return getTutorProfileSummary(tutorId)
 }
 
 const getScoreClass = (score) => {
@@ -406,6 +541,11 @@ const editTutor = (row) => {
   tutorForm.company = row.company
   tutorForm.studio = row.studio
   tutorDialogVisible.value = true
+}
+
+const viewTutorProfile = (row) => {
+  selectedTutor.value = row
+  tutorProfileVisible.value = true
 }
 
 const resetTutorForm = () => {
@@ -514,7 +654,7 @@ const deleteStudent = (row) => {
   align-items: center;
 }
 
-.student-cell,
+.person-cell,
 .profile-header,
 .profile-name-row,
 .tag-row {
@@ -523,7 +663,7 @@ const deleteStudent = (row) => {
   gap: 10px;
 }
 
-.student-photo,
+.person-photo,
 .profile-photo {
   flex-shrink: 0;
   display: flex;
@@ -534,11 +674,15 @@ const deleteStudent = (row) => {
   background: linear-gradient(135deg, #409eff, #10b981);
 }
 
-.student-photo {
+.person-photo {
   width: 36px;
   height: 36px;
   border-radius: 50%;
   font-size: 14px;
+}
+
+.tutor-photo {
+  background: linear-gradient(135deg, #059669, #10b981);
 }
 
 .profile-photo {
@@ -548,7 +692,7 @@ const deleteStudent = (row) => {
   font-size: 28px;
 }
 
-.student-name {
+.person-name {
   color: #303133;
   font-weight: 700;
 }

@@ -22,6 +22,10 @@
           <span class="nav-icon">💬</span>
           <span class="nav-label">查看反馈</span>
         </router-link>
+        <router-link to="/tutor/profile" class="nav-item" active-class="nav-item--active">
+          <span class="nav-icon">👤</span>
+          <span class="nav-label">我的资料</span>
+        </router-link>
       </nav>
 
       <div class="sidebar-footer">

@@ -19,6 +19,10 @@
           <span class="nav-icon">📚</span>
           <span class="nav-label">知识库</span>
         </router-link>
+        <router-link to="/student/profile" class="nav-item" active-class="nav-item--active">
+          <span class="nav-icon">👤</span>
+          <span class="nav-label">我的资料</span>
+        </router-link>
       </nav>
 
       <div class="sidebar-footer">
