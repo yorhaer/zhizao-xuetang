@@ -86,7 +86,7 @@
 
         <div class="result-badge">
           <span class="result-dot"></span>
-          当前显示 <strong>{{ filteredFeedbacks.length }}</strong> 条
+          当前显示 <strong>{{ filteredFeedbackGroups.length }}</strong> 门课 / <strong>{{ filteredFeedbacks.length }}</strong> 条
         </div>
       </div>
 
@@ -95,62 +95,57 @@
         <el-empty description="暂无学员评价" />
       </div>
 
-      <!-- Feedback Table -->
-      <el-table
-        v-else
-        :data="filteredFeedbacks"
-        stripe
-        style="width: 100%"
-        :header-cell-style="{ background: 'var(--bg-surface-subtle)', color: 'var(--text-secondary)' }"
-      >
-        <el-table-column prop="date" label="日期" width="110" />
-
-        <el-table-column prop="courseName" label="培训主题" min-width="170" show-overflow-tooltip />
-
-        <el-table-column label="学员" width="120">
-          <template #default="{ row }">
-            <div class="student-cell">
-              <span class="student-avatar">{{ (row.studentName || '？').charAt(0) }}</span>
-              <span>{{ row.studentName }}</span>
+      <!-- Feedback Groups -->
+      <div v-else-if="filteredFeedbackGroups.length" class="feedback-group-list">
+        <div v-for="group in filteredFeedbackGroups" :key="group.groupKey" class="feedback-group">
+          <div class="feedback-group-header">
+            <div>
+              <div class="feedback-course-title">{{ group.courseName }}</div>
+              <div class="muted">
+                {{ group.dateRange }} · {{ group.feedbacks.length }} 条反馈 · {{ group.studentNames.join('、') }}
+              </div>
             </div>
-          </template>
-        </el-table-column>
+            <div class="feedback-score">
+              <el-rate
+                v-model="group.avgRating"
+                disabled
+                show-score
+                text-color="#f59e0b"
+                score-template="{value}"
+              />
+            </div>
+          </div>
 
-        <el-table-column label="评分" width="190">
-          <template #default="{ row }">
-            <el-rate
-              v-model="row.rating"
-              disabled
-              show-score
-              text-color="#f59e0b"
-              score-template="{value}"
-            />
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="comment" label="评价内容" min-width="260" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span class="comment-text">{{ row.comment }}</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="来源" width="110" align="center">
-          <template #default="{ row }">
-            <el-tag
-              :type="row.source === '企微导入' ? 'success' : 'info'"
-              size="small"
-            >
-              {{ row.source }}
-            </el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
+          <div class="feedback-list">
+            <div v-for="item in group.feedbacks" :key="item.rowKey" class="feedback-row">
+              <div class="student-cell">
+                <span class="student-avatar">{{ (item.studentName || '？').charAt(0) }}</span>
+                <div>
+                  <div>{{ item.studentName }}</div>
+                  <div class="muted">{{ item.date }}</div>
+                </div>
+              </div>
+              <el-rate
+                v-model="item.rating"
+                disabled
+                show-score
+                text-color="#f59e0b"
+                score-template="{value}"
+              />
+              <div class="comment-text">{{ item.comment }}</div>
+              <el-tag
+                :type="item.source === '企微导入' ? 'success' : 'info'"
+                size="small"
+              >
+                {{ item.source }}
+              </el-tag>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Filter no-match state -->
-      <div
-        v-if="feedbacks.length > 0 && filteredFeedbacks.length === 0"
-        class="empty-wrap"
-      >
+      <div v-if="feedbacks.length > 0 && filteredFeedbacks.length === 0" class="empty-wrap">
         <el-empty description="没有符合筛选条件的评价，请调整筛选项" />
       </div>
     </div>
@@ -174,8 +169,10 @@ const feedbacks = computed(() => {
         training.studentIds[idx] === evalItem.studentId
       )
       result.push({
+        rowKey: `${training.id}-${evalItem.studentId}`,
         studentName: studentName || '未知学员',
         courseName: training.courseName,
+        trainingContent: training.trainingContent,
         rating: evalItem.rating,
         comment: evalItem.comment,
         source: evalItem.source || '系统录入',
@@ -184,18 +181,6 @@ const feedbacks = computed(() => {
     })
   })
 
-  // Prototype-only: duplicate a few rows to verify the dense table layout.
-  if (result.length > 0 && result.length < 8) {
-    const seed = [...result]
-    while (result.length < 8) {
-      const item = seed[result.length % seed.length]
-      result.push({
-        ...item,
-        studentName: `${item.studentName}`,
-        comment: `${item.comment}（补充样例）`
-      })
-    }
-  }
   return result
 })
 
@@ -208,6 +193,41 @@ const filteredFeedbacks = computed(() => feedbacks.value.filter(item => {
     (ratingFilter.value === 'low' && item.rating <= 3)
   return courseMatched && ratingMatched
 }))
+
+const filteredFeedbackGroups = computed(() => {
+  const grouped = new Map()
+
+  filteredFeedbacks.value.forEach(item => {
+    const groupKey = `${item.courseName}::${item.trainingContent}`
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, {
+        groupKey,
+        courseName: item.courseName,
+        trainingContent: item.trainingContent,
+        dates: [],
+        studentNames: new Set(),
+        feedbacks: []
+      })
+    }
+
+    const group = grouped.get(groupKey)
+    group.dates.push(item.date)
+    group.studentNames.add(item.studentName)
+    group.feedbacks.push(item)
+  })
+
+  return Array.from(grouped.values()).map(group => {
+    const sortedDates = [...new Set(group.dates)].sort()
+    const avgRating = group.feedbacks.reduce((sum, item) => sum + item.rating, 0) / group.feedbacks.length
+    return {
+      ...group,
+      avgRating,
+      dateRange: sortedDates.length > 1 ? `${sortedDates[0]} 至 ${sortedDates[sortedDates.length - 1]}` : sortedDates[0],
+      studentNames: Array.from(group.studentNames),
+      feedbacks: group.feedbacks.sort((a, b) => a.date.localeCompare(b.date))
+    }
+  }).sort((a, b) => `${a.courseName} ${a.dateRange}`.localeCompare(`${b.courseName} ${b.dateRange}`))
+})
 
 const avgRating = computed(() => {
   if (feedbacks.value.length === 0) return 0
@@ -290,7 +310,57 @@ onMounted(loadTrainings)
   flex-shrink: 0;
 }
 
-/* Table cells */
+.feedback-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.feedback-group {
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+
+.feedback-group-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-surface-subtle);
+}
+
+.feedback-course-title {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.feedback-score {
+  flex-shrink: 0;
+}
+
+.feedback-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.feedback-row {
+  display: grid;
+  grid-template-columns: 150px 180px minmax(0, 1fr) 92px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.feedback-row:last-child {
+  border-bottom: none;
+}
+
 .student-cell {
   display: flex;
   align-items: center;
@@ -317,8 +387,31 @@ onMounted(loadTrainings)
   line-height: 1.5;
 }
 
+.muted {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 /* Empty states */
 .empty-wrap {
   padding: 40px 0;
+}
+
+@media (max-width: 900px) {
+  .toolbar,
+  .feedback-group-header,
+  .feedback-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .toolbar,
+  .feedback-group-header {
+    display: flex;
+  }
+
+  .feedback-row {
+    display: flex;
+  }
 }
 </style>

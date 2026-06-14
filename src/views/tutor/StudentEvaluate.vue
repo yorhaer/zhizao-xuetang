@@ -10,15 +10,15 @@
     </div>
 
     <!-- Empty state: no trainings at all -->
-    <div v-if="trainingsWithStudents.length === 0" class="empty-wrap section-card">
+    <div v-if="courseEvaluationGroups.length === 0" class="empty-wrap section-card">
       <el-empty description="暂无可评价的培训" />
     </div>
 
     <!-- Training cards -->
     <div v-else class="training-list">
       <div
-        v-for="training in trainingsWithStudents"
-        :key="training.id"
+        v-for="courseGroup in courseEvaluationGroups"
+        :key="courseGroup.groupKey"
         class="training-card"
       >
         <!-- Card header -->
@@ -26,23 +26,23 @@
           <div class="training-card__title-row">
             <span class="training-card__icon">📚</span>
             <div>
-              <div class="training-card__name">{{ training.courseName }}</div>
+              <div class="training-card__name">{{ courseGroup.courseName }}</div>
               <div class="training-card__meta">
-                {{ training.startDate }}
-                <span class="meta-sep">→</span>
-                {{ training.endDate }}
-                &ensp;·&ensp;
-                <span class="meta-count">{{ training.students.length }} 名学员</span>
+                {{ courseGroup.dateRange }}
+                <span class="meta-sep">·</span>
+                {{ courseGroup.sessionCount }} 次授课
+                <span class="meta-sep">·</span>
+                <span class="meta-count">{{ courseGroup.students.length }} 条评价</span>
               </div>
             </div>
           </div>
 
           <div class="progress-pill">
             <span class="progress-done">
-              {{ training.students.filter(s => s.evaluated).length }}
+              {{ courseGroup.students.filter(s => s.evaluated).length }}
             </span>
             <span class="progress-sep">/</span>
-            <span class="progress-total">{{ training.students.length }}</span>
+            <span class="progress-total">{{ courseGroup.students.length }}</span>
             <span class="progress-label">已评</span>
           </div>
         </div>
@@ -50,8 +50,8 @@
         <!-- Student grid -->
         <div class="student-grid">
           <div
-            v-for="student in training.students"
-            :key="student.id"
+            v-for="student in courseGroup.students"
+            :key="student.rowKey"
             class="student-item"
             :class="{ 'student-item--evaluated': student.evaluated }"
           >
@@ -60,6 +60,7 @@
             </div>
             <div class="student-item__info">
               <div class="student-item__name">{{ student.name }}</div>
+              <div class="student-item__date">{{ student.startDate }} {{ student.startTime }}-{{ student.endTime }}</div>
               <div v-if="student.evaluated" class="student-item__rating">
                 <el-rate
                   v-model="student.rating"
@@ -77,7 +78,7 @@
               type="primary"
               size="small"
               class="evaluate-btn"
-              @click="openEvaluateDialog(training, student)"
+              @click="openEvaluateDialog(student.training, student)"
             >
               评价
             </el-button>
@@ -141,7 +142,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useUserStore } from '../../stores/user'
-import { getUserTrainings, students } from '../../api/mockData'
+import { getUserTrainings } from '../../api/mockData'
 import { ElMessage } from 'element-plus'
 
 const userStore = useUserStore()
@@ -165,23 +166,54 @@ const rules = {
   ]
 }
 
-// BUG FIX: match only tutor_to_student evaluations; use .rating not .tutorRating
-const trainingsWithStudents = computed(() => {
-  return trainings.value.map(training => ({
-    ...training,
-    students: training.students.map((name, index) => {
+const courseEvaluationGroups = computed(() => {
+  const grouped = new Map()
+
+  trainings.value.forEach(training => {
+    const groupKey = `${training.courseName}::${training.trainingContent}`
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, {
+        groupKey,
+        courseName: training.courseName,
+        trainingContent: training.trainingContent,
+        dates: [],
+        sessionIds: new Set(),
+        students: []
+      })
+    }
+
+    const group = grouped.get(groupKey)
+    group.dates.push(training.startDate)
+    group.sessionIds.add(training.id)
+
+    training.students.forEach((name, index) => {
       const studentId = training.studentIds[index]
       const existingEval = training.evaluations?.find(
         e => e.type === 'tutor_to_student' && e.studentId === studentId
       )
-      return {
+      group.students.push({
+        rowKey: `${training.id}-${studentId}`,
         id: studentId,
         name,
+        startDate: training.startDate,
+        startTime: training.startTime,
+        endTime: training.endTime,
+        training,
         evaluated: !!existingEval,
         rating: existingEval ? existingEval.rating || 0 : 0
-      }
+      })
     })
-  }))
+  })
+
+  return Array.from(grouped.values()).map(group => {
+    const sortedDates = [...new Set(group.dates)].sort()
+    return {
+      ...group,
+      sessionCount: group.sessionIds.size,
+      dateRange: sortedDates.length > 1 ? `${sortedDates[0]} 至 ${sortedDates[sortedDates.length - 1]}` : sortedDates[0],
+      students: group.students.sort((a, b) => `${a.startDate} ${a.startTime}`.localeCompare(`${b.startDate} ${b.startTime}`))
+    }
+  })
 })
 
 const loadTrainings = () => {
@@ -386,6 +418,12 @@ onMounted(() => {
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 3px;
+}
+
+.student-item__date {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-bottom: 4px;
 }
 
 .student-item__rating {

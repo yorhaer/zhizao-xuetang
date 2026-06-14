@@ -117,7 +117,7 @@ const routes = [
       {
         path: 'assessment',
         name: 'AdminAssessment',
-        component: () => import('../views/admin/AssessmentEntry.vue')
+        redirect: '/admin/ledger?tab=assessment'
       },
       {
         path: 'evaluations',

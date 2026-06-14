@@ -32,6 +32,72 @@
       </div>
     </div>
 
+    <!-- 近期课程窗口 -->
+    <div class="schedule-panel">
+      <div class="schedule-panel-header">
+        <div>
+          <h3 class="schedule-title">近期课程</h3>
+          <p class="schedule-subtitle">{{ scheduleRangeText }}</p>
+        </div>
+        <el-segmented v-model="scheduleScope" :options="scheduleScopeOptions" />
+      </div>
+
+      <div class="schedule-summary">
+        <div class="schedule-summary-item">
+          <span>课程</span>
+          <strong>{{ scopedTrainings.length }}</strong>
+        </div>
+        <div class="schedule-summary-item">
+          <span>待授课</span>
+          <strong>{{ scopedUpcoming.length }}</strong>
+        </div>
+        <div class="schedule-summary-item">
+          <span>待补资料</span>
+          <strong>{{ scopedMissingCourseware.length }}</strong>
+        </div>
+        <div class="schedule-summary-item">
+          <span>已完成</span>
+          <strong>{{ scopedCompleted.length }}</strong>
+        </div>
+      </div>
+
+      <div v-if="scopedTrainings.length" class="schedule-list">
+        <button
+          v-for="training in scopedTrainings"
+          :key="training.id"
+          type="button"
+          class="schedule-row"
+          @click="openSchedule(training)"
+        >
+          <div class="schedule-date">
+            <span>{{ formatMonthDay(training.startDate) }}</span>
+            <strong>{{ getWeekdayLabel(training.startDate) }}</strong>
+          </div>
+          <div class="schedule-main">
+            <div class="schedule-course">{{ training.courseName }}</div>
+            <div class="schedule-meta">
+              {{ training.startTime }}-{{ training.endTime }} · {{ training.students.join('、') }}
+            </div>
+          </div>
+          <div class="schedule-actions">
+            <el-tag :type="getStatusType(training.status)" size="small">
+              {{ getStatusText(training.status) }}
+            </el-tag>
+            <el-button
+              v-if="!training.coursewares.length"
+              size="small"
+              type="warning"
+              plain
+              @click.stop="openUpload(training)"
+            >
+              补资料
+            </el-button>
+          </div>
+        </button>
+      </div>
+      <el-empty v-else :description="`${scheduleScope}暂无授课安排`" />
+    </div>
+
     <el-card shadow="never" class="workspace-card">
       <template #header>
         <div class="card-header">
@@ -58,9 +124,18 @@
             <el-segmented v-model="statusFilter" :options="filterOptions" />
           </div>
 
-          <el-table :data="filteredTrainings" stripe style="width: 100%">
-            <el-table-column prop="courseName" label="课程" min-width="180" />
-            <el-table-column prop="trainingContent" label="内容" min-width="220" show-overflow-tooltip />
+          <el-table
+            :data="teachingLedgerRows"
+            border
+            stripe
+            style="width: 100%"
+            :span-method="teachingSpanMethod"
+            row-key="rowKey"
+            class="teaching-ledger-table"
+          >
+            <el-table-column prop="courseName" label="课程" min-width="200" />
+            <el-table-column prop="trainingContent" label="内容" min-width="240" show-overflow-tooltip />
+            <el-table-column prop="studentName" label="学员" width="120" />
             <el-table-column label="时间" width="170">
               <template #default="{ row }">
                 <div>{{ row.startDate }}</div>
@@ -68,35 +143,28 @@
               </template>
             </el-table-column>
             <el-table-column prop="location" label="地点" width="130" show-overflow-tooltip />
-            <el-table-column label="学员" min-width="160">
-              <template #default="{ row }">
-                <el-tag v-for="student in row.students" :key="student" size="small" class="inline-tag">
-                  {{ student }}
-                </el-tag>
-              </template>
-            </el-table-column>
             <el-table-column label="资料" width="130">
               <template #default="{ row }">
-                <el-tag :type="row.coursewares.length ? 'success' : 'warning'" size="small">
-                  {{ row.coursewares.length ? `${row.coursewares.length} 份` : '待上传' }}
+                <el-tag :type="row.training.coursewares.length ? 'success' : 'warning'" size="small">
+                  {{ row.training.coursewares.length ? `${row.training.coursewares.length} 份` : '待上传' }}
                 </el-tag>
               </template>
             </el-table-column>
             <el-table-column label="状态" width="110">
               <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)">
-                  {{ getStatusText(row.status) }}
+                <el-tag :type="getStatusType(row.training.status)">
+                  {{ getStatusText(row.training.status) }}
                 </el-tag>
               </template>
             </el-table-column>
             <el-table-column label="操作" fixed="right" width="250">
               <template #default="{ row }">
-                <el-button size="small" @click="openSchedule(row)">改期/代课</el-button>
-                <el-button size="small" @click="openUpload(row)">上传资料</el-button>
+                <el-button size="small" @click="openSchedule(row.training)">改期/代课</el-button>
+                <el-button size="small" @click="openUpload(row.training)">上传资料</el-button>
                 <el-button
-                  v-if="['completed', 'assessed'].includes(row.status)"
+                  v-if="['completed', 'assessed'].includes(row.training.status)"
                   size="small"
-                  @click="inputAssessment(row)"
+                  @click="inputAssessment(row.training)"
                 >
                   录成绩
                 </el-button>
@@ -106,37 +174,48 @@
         </el-tab-pane>
 
         <el-tab-pane label="资料库" name="resources">
-          <el-table :data="resourceRows" stripe style="width: 100%">
-            <el-table-column label="资料" min-width="220">
-              <template #default="{ row }">
-                <div class="file-title">{{ row.name }}</div>
-                <div class="muted">{{ row.type }} / {{ row.courseName }}</div>
-              </template>
-            </el-table-column>
-            <el-table-column prop="summary" label="用途" min-width="260" show-overflow-tooltip />
-            <el-table-column label="标签" min-width="180">
-              <template #default="{ row }">
-                <el-tag v-for="tag in row.knowledgeTags" :key="tag" size="small" class="inline-tag">
-                  {{ tag }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="学员可见" width="140">
-              <template #default="{ row }">
-                <el-select v-model="row.visibility" size="small" @change="saveResourceVisibility(row)">
-                  <el-option label="公开" value="public" />
-                  <el-option label="本课可见" value="class" />
-                  <el-option label="草稿" value="draft" />
-                </el-select>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="140">
-              <template #default="{ row }">
-                <el-button size="small">预览</el-button>
-                <el-button size="small" @click="openResourceEdit(row)">编辑</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+          <div class="resource-group-list">
+            <div v-for="group in resourceGroups" :key="group.groupKey" class="resource-group">
+              <div class="resource-group-header">
+                <div>
+                  <div class="resource-course-title">{{ group.courseName }}</div>
+                  <div class="muted">
+                    {{ group.dateRange }} · {{ group.sessionCount }} 场授课 · {{ group.studentNames.join('、') }}
+                  </div>
+                </div>
+                <div class="resource-group-actions">
+                  <el-tag :type="group.files.length ? 'success' : 'warning'" size="small">
+                    {{ group.files.length ? `${group.files.length} 份课件` : '待上传' }}
+                  </el-tag>
+                  <el-button size="small" type="primary" plain @click="openUpload(group.training)">上传资料</el-button>
+                </div>
+              </div>
+
+              <div v-if="group.files.length" class="resource-file-list">
+                <div v-for="file in group.files" :key="file.id" class="resource-file-row">
+                  <div class="resource-file-main">
+                    <div class="file-title">{{ file.name }}</div>
+                    <div class="muted">{{ file.type }} · {{ file.summary || '未填写用途说明' }}</div>
+                    <div class="resource-tags">
+                      <el-tag v-for="tag in file.knowledgeTags" :key="tag" size="small" class="inline-tag">
+                        {{ tag }}
+                      </el-tag>
+                    </div>
+                  </div>
+                  <el-select v-model="file.visibility" size="small" class="visibility-select" @change="saveResourceVisibility(file)">
+                    <el-option label="公开" value="public" />
+                    <el-option label="本课可见" value="class" />
+                    <el-option label="草稿" value="draft" />
+                  </el-select>
+                  <div class="resource-file-actions">
+                    <el-button size="small">预览</el-button>
+                    <el-button size="small" @click="openResourceEdit(file)">编辑</el-button>
+                  </div>
+                </div>
+              </div>
+              <el-empty v-else description="这节课还没有资料" />
+            </div>
+          </div>
         </el-tab-pane>
       </el-tabs>
     </el-card>
@@ -350,7 +429,9 @@ const trainings = ref([])
 const activeTab = ref('log')
 const keyword = ref('')
 const statusFilter = ref('全部')
+const scheduleScope = ref('本周')
 const filterOptions = ['全部', '未开始', '已完成', '已考核', '已评价']
+const scheduleScopeOptions = ['本周', '本月']
 const uploadDialogVisible = ref(false)
 const scheduleDialogVisible = ref(false)
 const resourceDialogVisible = ref(false)
@@ -381,6 +462,7 @@ const scheduleForm = reactive({
 const resourceForm = reactive({
   id: null,
   trainingId: null,
+  sourceRefs: [],
   name: '',
   visibility: 'public',
   knowledgeTags: [],
@@ -400,9 +482,71 @@ const resourceRows = computed(() => trainings.value.flatMap(training => training
   courseName: training.courseName,
   trainingId: training.id
 }))))
+const resourceGroups = computed(() => {
+  const grouped = new Map()
+
+  trainings.value.forEach(training => {
+    const groupKey = `${training.courseName}::${training.trainingContent}`
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, {
+        groupKey,
+        training,
+        courseName: training.courseName,
+        trainingContent: training.trainingContent,
+        dates: [],
+        studentNames: new Set(),
+        sessionIds: new Set(),
+        filesByKey: new Map()
+      })
+    }
+
+    const group = grouped.get(groupKey)
+    group.dates.push(training.startDate)
+    group.sessionIds.add(training.id)
+    training.students.forEach(name => group.studentNames.add(name))
+
+    training.coursewares.forEach(file => {
+      const fileKey = `${file.url || file.name}::${file.name}::${file.type}`
+      if (!group.filesByKey.has(fileKey)) {
+        group.filesByKey.set(fileKey, {
+          ...file,
+          courseName: training.courseName,
+          trainingId: training.id,
+          sourceRefs: []
+        })
+      }
+      group.filesByKey.get(fileKey).sourceRefs.push({
+        trainingId: training.id,
+        fileId: file.id
+      })
+    })
+  })
+
+  return Array.from(grouped.values()).map(group => {
+    const sortedDates = [...new Set(group.dates)].sort()
+    return {
+      groupKey: group.groupKey,
+      training: group.training,
+      courseName: group.courseName,
+      trainingContent: group.trainingContent,
+      dateRange: sortedDates.length > 1 ? `${sortedDates[0]} 至 ${sortedDates[sortedDates.length - 1]}` : sortedDates[0],
+      sessionCount: group.sessionIds.size,
+      studentNames: Array.from(group.studentNames),
+      files: Array.from(group.filesByKey.values()).sort((a, b) => a.name.localeCompare(b.name))
+    }
+  }).sort((a, b) => `${a.courseName} ${a.dateRange}`.localeCompare(`${b.courseName} ${b.dateRange}`))
+})
 const publicResourceCount = computed(() => resourceRows.value.filter(item => item.visibility === 'public').length)
 const availableTutors = computed(() => tutors.filter(item => item.studio === currentTraining.studio))
 const availableStudents = computed(() => students.filter(item => item.studio === currentTraining.studio))
+const scheduleRange = computed(() => scheduleScope.value === '本周' ? getCurrentWeekRange() : getCurrentMonthRange())
+const scopedTrainings = computed(() => trainings.value
+  .filter(item => item.startDate >= scheduleRange.value.start && item.startDate <= scheduleRange.value.end)
+  .sort((a, b) => `${a.startDate} ${a.startTime}`.localeCompare(`${b.startDate} ${b.startTime}`)))
+const scopedUpcoming = computed(() => scopedTrainings.value.filter(item => item.status === 'upcoming'))
+const scopedMissingCourseware = computed(() => scopedTrainings.value.filter(item => item.coursewares.length === 0))
+const scopedCompleted = computed(() => scopedTrainings.value.filter(item => ['completed', 'assessed', 'evaluated'].includes(item.status)))
+const scheduleRangeText = computed(() => `${scheduleRange.value.start} 至 ${scheduleRange.value.end}`)
 
 const filteredTrainings = computed(() => {
   const status = statusLabelMap[statusFilter.value]
@@ -415,9 +559,82 @@ const filteredTrainings = computed(() => {
     return matchesStatus && matchesKeyword
   })
 })
+const teachingLedgerRows = computed(() => {
+  const sorted = [...filteredTrainings.value].sort((a, b) => {
+    const courseCompare = `${a.courseName} ${a.trainingContent}`.localeCompare(`${b.courseName} ${b.trainingContent}`)
+    if (courseCompare) return courseCompare
+    return `${a.startDate} ${a.startTime}`.localeCompare(`${b.startDate} ${b.startTime}`)
+  })
+  const grouped = new Map()
+
+  sorted.forEach(training => {
+    const groupKey = `${training.courseName}::${training.trainingContent}`
+    if (!grouped.has(groupKey)) grouped.set(groupKey, [])
+    training.students.forEach((studentName, studentIndex) => {
+      grouped.get(groupKey).push({
+        rowKey: `${training.id}-${studentIndex}`,
+        groupKey,
+        courseName: training.courseName,
+        trainingContent: training.trainingContent,
+        studentName,
+        studentId: training.studentIds[studentIndex],
+        startDate: training.startDate,
+        startTime: training.startTime,
+        endTime: training.endTime,
+        location: training.location,
+        training,
+        isFirstInGroup: false,
+        groupRowspan: 1
+      })
+    })
+  })
+
+  return Array.from(grouped.values()).flatMap(rows => rows.map((row, index) => ({
+    ...row,
+    isFirstInGroup: index === 0,
+    groupRowspan: index === 0 ? rows.length : 0
+  })))
+})
+
+const teachingSpanMethod = ({ row, column }) => {
+  if (!['courseName', 'trainingContent'].includes(column.property)) return [1, 1]
+  return row.isFirstInGroup ? [row.groupRowspan, 1] : [0, 0]
+}
 
 const loadTrainings = () => {
   trainings.value = getUserTrainings(currentTutorId, 'tutor')
+}
+
+const formatDate = (date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const getCurrentWeekRange = () => {
+  const today = new Date()
+  const day = today.getDay() || 7
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - day + 1)
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6)
+  return { start: formatDate(start), end: formatDate(end) }
+}
+
+const getCurrentMonthRange = () => {
+  const today = new Date()
+  const start = new Date(today.getFullYear(), today.getMonth(), 1)
+  const end = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+  return { start: formatDate(start), end: formatDate(end) }
+}
+
+const formatMonthDay = (dateText) => {
+  const [, month, day] = dateText.split('-')
+  return `${Number(month)}/${Number(day)}`
+}
+
+const getWeekdayLabel = (dateText) => {
+  const date = new Date(`${dateText}T00:00:00`)
+  return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()]
 }
 
 const openUpload = (row) => {
@@ -507,6 +724,7 @@ const openResourceEdit = (row) => {
   Object.assign(resourceForm, {
     id: row.id,
     trainingId: row.trainingId,
+    sourceRefs: [...(row.sourceRefs || [{ trainingId: row.trainingId, fileId: row.id }])],
     name: row.name,
     visibility: row.visibility,
     knowledgeTags: [...(row.knowledgeTags || [])],
@@ -516,24 +734,28 @@ const openResourceEdit = (row) => {
 }
 
 const saveResource = () => {
-  const training = trainings.value.find(item => item.id === resourceForm.trainingId)
-  const resource = training?.coursewares.find(item => item.id === resourceForm.id)
-  if (!resource) return
-  Object.assign(resource, {
-    name: resourceForm.name,
-    visibility: resourceForm.visibility,
-    knowledgeTags: [...resourceForm.knowledgeTags],
-    summary: resourceForm.summary
+  resourceForm.sourceRefs.forEach(({ trainingId, fileId }) => {
+    const training = trainings.value.find(item => item.id === trainingId)
+    const resource = training?.coursewares.find(item => item.id === fileId)
+    if (!resource) return
+    Object.assign(resource, {
+      name: resourceForm.name,
+      visibility: resourceForm.visibility,
+      knowledgeTags: [...resourceForm.knowledgeTags],
+      summary: resourceForm.summary
+    })
   })
   ElMessage.success('资料信息已更新，原型数据仅本次会话有效')
   resourceDialogVisible.value = false
 }
 
 const saveResourceVisibility = (row) => {
-  const training = trainings.value.find(item => item.id === row.trainingId)
-  const resource = training?.coursewares.find(item => item.id === row.id)
-  if (!resource) return
-  resource.visibility = row.visibility
+  const refs = row.sourceRefs || [{ trainingId: row.trainingId, fileId: row.id }]
+  refs.forEach(({ trainingId, fileId }) => {
+    const training = trainings.value.find(item => item.id === trainingId)
+    const resource = training?.coursewares.find(item => item.id === fileId)
+    if (resource) resource.visibility = row.visibility
+  })
   ElMessage.success('资料可见范围已更新')
 }
 
@@ -577,6 +799,136 @@ onMounted(loadTrainings)
   background: linear-gradient(135deg, #fff, #fffbeb) !important;
 }
 
+.schedule-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.schedule-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.schedule-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.schedule-subtitle {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.schedule-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.schedule-summary-item {
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-subtle);
+}
+
+.schedule-summary-item span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.schedule-summary-item strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-size: 22px;
+}
+
+.schedule-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 10px;
+}
+
+.schedule-row {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 78px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.schedule-row:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 6px 16px rgba(79, 110, 242, 0.12);
+  transform: translateY(-1px);
+}
+
+.schedule-date {
+  display: flex;
+  height: 54px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.schedule-date span {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.schedule-date strong {
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.schedule-main {
+  min-width: 0;
+}
+
+.schedule-course {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-meta {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.schedule-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
 .workspace-card { margin-bottom: 16px; }
 
 .card-header {
@@ -602,6 +954,15 @@ onMounted(loadTrainings)
 }
 
 .search-input { width: 280px; }
+
+.teaching-ledger-table :deep(.el-table__cell) {
+  vertical-align: middle;
+}
+
+.teaching-ledger-table :deep(.el-table__row td:nth-child(1)),
+.teaching-ledger-table :deep(.el-table__row td:nth-child(2)) {
+  background: rgba(79, 110, 242, 0.03);
+}
 
 .two-column-form {
   display: grid;
@@ -637,8 +998,98 @@ onMounted(loadTrainings)
   color: var(--text-primary);
 }
 
+.resource-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.resource-group {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: #fff;
+  overflow: hidden;
+}
+
+.resource-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--bg-surface-subtle);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.resource-course-title {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.resource-group-actions,
+.resource-file-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.resource-file-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.resource-file-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.resource-file-row:last-child {
+  border-bottom: none;
+}
+
+.resource-file-main {
+  min-width: 0;
+}
+
+.resource-tags {
+  margin-top: 6px;
+}
+
+.visibility-select {
+  width: 120px;
+}
+
 .muted {
   color: var(--text-muted);
   font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .stats-grid,
+  .schedule-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-panel-header {
+    flex-direction: column;
+  }
+
+  .resource-group-header,
+  .resource-file-row {
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .resource-group-actions,
+  .resource-file-actions {
+    justify-content: flex-start;
+  }
 }
 </style>

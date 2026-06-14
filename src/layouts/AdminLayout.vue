@@ -22,10 +22,6 @@
           <span class="nav-icon">📸</span>
           <span class="nav-label">执行记录</span>
         </router-link>
-        <router-link to="/admin/assessment" class="nav-item" active-class="nav-item--active">
-          <span class="nav-icon">🏆</span>
-          <span class="nav-label">考核录入</span>
-        </router-link>
         <router-link to="/admin/evaluations" class="nav-item" active-class="nav-item--active">
           <span class="nav-icon">⭐</span>
           <span class="nav-label">评价汇总</span>

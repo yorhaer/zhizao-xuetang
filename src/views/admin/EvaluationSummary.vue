@@ -1,33 +1,33 @@
 <template>
   <div class="page-container fade-in-up">
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon amber">⭐</div>
-        <div class="stat-content">
+    <div class="summary-strip">
+      <div class="summary-metric">
+        <div class="summary-icon amber">⭐</div>
+        <div>
           <div class="stat-label">学员评导师</div>
           <div class="stat-value">{{ studentToTutorStats.avg.toFixed(1) }}<sup>/5.0</sup></div>
           <div class="stat-note">{{ studentToTutorStats.count }}条评价</div>
         </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon indigo">👨‍🏫</div>
-        <div class="stat-content">
+      <div class="summary-metric">
+        <div class="summary-icon indigo">讲</div>
+        <div>
           <div class="stat-label">导师评学员</div>
           <div class="stat-value">{{ tutorToStudentStats.avg.toFixed(1) }}<sup>/5.0</sup></div>
           <div class="stat-note">{{ tutorToStudentStats.count }}条评价</div>
         </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon blue">💬</div>
-        <div class="stat-content">
+      <div class="summary-metric">
+        <div class="summary-icon blue">微</div>
+        <div>
           <div class="stat-label">企微来源</div>
           <div class="stat-value">{{ wecomCount }}<sup>条</sup></div>
           <div class="stat-note">移动端收集</div>
         </div>
       </div>
-      <div class="stat-card" :class="{ 'stat-card--alert': missingEvaluationTrainings.length > 0 }">
-        <div class="stat-icon amber">⚠️</div>
-        <div class="stat-content">
+      <div class="summary-metric" :class="{ 'summary-metric--alert': missingEvaluationTrainings.length > 0 }">
+        <div class="summary-icon amber">缺</div>
+        <div>
           <div class="stat-label">缺评价培训</div>
           <div class="stat-value">{{ missingEvaluationTrainings.length }}<sup>场</sup></div>
           <div class="stat-note">影响台账闭环</div>
@@ -150,19 +150,91 @@ const missingEvaluationTrainings = computed(() => trainingPlans.filter(plan =>
   padding: 20px;
 }
 
-.summary-row,
+.summary-strip,
 .missing-card {
   margin-bottom: 16px;
 }
 
-.metric-note,
+.summary-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--border-light);
+  box-shadow: var(--shadow-sm);
+}
+
+.summary-metric {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 82px;
+  padding: 12px 14px;
+  background: var(--bg-surface);
+}
+
+.summary-metric--alert {
+  background: #fffbeb;
+}
+
+.summary-icon {
+  display: flex;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.summary-icon.amber {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.summary-icon.indigo {
+  color: #4f46e5;
+  background: #eef2ff;
+}
+
+.summary-icon.blue {
+  color: #2563eb;
+  background: #dbeafe;
+}
+
 .card-subtitle {
   color: #909399;
   font-size: 12px;
 }
 
-.metric-note {
-  margin-top: 6px;
+.stat-label {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.stat-value {
+  margin-top: 3px;
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.stat-value sup {
+  margin-left: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.stat-note {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 .card-header {
@@ -188,5 +260,16 @@ const missingEvaluationTrainings = computed(() => trainingPlans.filter(plan =>
 
 .gap-tag {
   margin-right: 6px;
+}
+
+@media (max-width: 900px) {
+  .summary-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .card-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 </style>

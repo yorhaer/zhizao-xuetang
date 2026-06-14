@@ -26,6 +26,59 @@
       </div>
     </div>
 
+    <!-- 近期课程窗口 -->
+    <div class="schedule-panel">
+      <div class="schedule-panel-header">
+        <div>
+          <h3 class="schedule-title">近期课程</h3>
+          <p class="schedule-subtitle">{{ scheduleRangeText }}</p>
+        </div>
+        <el-segmented v-model="scheduleScope" :options="scheduleScopeOptions" />
+      </div>
+
+      <div class="schedule-summary">
+        <div class="schedule-summary-item">
+          <span>课程</span>
+          <strong>{{ scopedTrainings.length }}</strong>
+        </div>
+        <div class="schedule-summary-item">
+          <span>待参加</span>
+          <strong>{{ scopedUpcoming.length }}</strong>
+        </div>
+        <div class="schedule-summary-item">
+          <span>待评价</span>
+          <strong>{{ scopedPendingEvaluation.length }}</strong>
+        </div>
+        <div class="schedule-summary-item">
+          <span>已完成</span>
+          <strong>{{ scopedCompleted.length }}</strong>
+        </div>
+      </div>
+
+      <div v-if="scopedTrainings.length" class="schedule-list">
+        <button
+          v-for="training in scopedTrainings"
+          :key="training.id"
+          type="button"
+          class="schedule-row"
+          @click="focusTraining(training)"
+        >
+          <div class="schedule-date">
+            <span>{{ formatMonthDay(training.startDate) }}</span>
+            <strong>{{ getWeekdayLabel(training.startDate) }}</strong>
+          </div>
+          <div class="schedule-main">
+            <div class="schedule-course">{{ training.courseName }}</div>
+            <div class="schedule-meta">{{ training.startTime }}–{{ training.endTime }} · {{ training.tutor }}</div>
+          </div>
+          <el-tag :type="getStatusType(training.status)" size="small">
+            {{ getStatusText(training.status) }}
+          </el-tag>
+        </button>
+      </div>
+      <el-empty v-else :description="`${scheduleScope}暂无课程安排`" />
+    </div>
+
     <!-- 待处理提醒 -->
     <div v-if="pendingEvaluation.length" class="todo-banner">
       <div class="todo-banner-icon">🔔</div>
@@ -112,7 +165,9 @@ const router = useRouter()
 const trainings = ref([])
 const currentStudentId = 1
 const statusFilter = ref('全部')
+const scheduleScope = ref('本周')
 const filterOptions = ['全部', '未开始', '已完成', '已考核', '已评价']
+const scheduleScopeOptions = ['本周', '本月']
 
 const statusLabelMap = { 未开始: 'upcoming', 已完成: 'completed', 已考核: 'assessed', 已评价: 'evaluated' }
 
@@ -123,6 +178,14 @@ const filteredTrainings = computed(() => {
 
 const coursewareCount = computed(() => trainings.value.reduce((sum, item) => sum + item.coursewares.length, 0))
 const pendingEvaluation = computed(() => trainings.value.filter(needsTutorEvaluation))
+const scheduleRange = computed(() => scheduleScope.value === '本周' ? getCurrentWeekRange() : getCurrentMonthRange())
+const scopedTrainings = computed(() => trainings.value
+  .filter(item => item.startDate >= scheduleRange.value.start && item.startDate <= scheduleRange.value.end)
+  .sort((a, b) => `${a.startDate} ${a.startTime}`.localeCompare(`${b.startDate} ${b.startTime}`)))
+const scopedUpcoming = computed(() => scopedTrainings.value.filter(item => item.status === 'upcoming'))
+const scopedPendingEvaluation = computed(() => scopedTrainings.value.filter(needsTutorEvaluation))
+const scopedCompleted = computed(() => scopedTrainings.value.filter(item => ['completed', 'assessed', 'evaluated'].includes(item.status)))
+const scheduleRangeText = computed(() => `${scheduleRange.value.start} 至 ${scheduleRange.value.end}`)
 
 const getMyAssessment = (training) => training.assessments.find(item => item.studentId === currentStudentId)
 
@@ -132,11 +195,55 @@ const needsTutorEvaluation = (training) =>
 
 const getScoreClass = (score) => score >= 90 ? 'score-excellent' : score >= 60 ? 'score-pass' : 'score-fail'
 
+const formatDate = (date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const getCurrentWeekRange = () => {
+  const today = new Date()
+  const day = today.getDay() || 7
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - day + 1)
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6)
+  return { start: formatDate(start), end: formatDate(end) }
+}
+
+const getCurrentMonthRange = () => {
+  const today = new Date()
+  const start = new Date(today.getFullYear(), today.getMonth(), 1)
+  const end = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+  return { start: formatDate(start), end: formatDate(end) }
+}
+
+const formatMonthDay = (dateText) => {
+  const [, month, day] = dateText.split('-')
+  return `${Number(month)}/${Number(day)}`
+}
+
+const getWeekdayLabel = (dateText) => {
+  const date = new Date(`${dateText}T00:00:00`)
+  return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()]
+}
+
 const loadTrainings = () => { trainings.value = getUserTrainings(currentStudentId, 'student') }
 
 const viewCourseware = (row) => router.push(`/student/courseware/${row.id}`)
 const viewAssessment = (row) => router.push(`/student/assessment/${row.id}`)
 const evaluateTutor = (row) => router.push(`/student/evaluate/${row.id}`)
+const focusTraining = (row) => {
+  statusFilter.value = '全部'
+  if (getMyAssessment(row)) {
+    viewAssessment(row)
+    return
+  }
+  if (row.coursewares.length) {
+    viewCourseware(row)
+    return
+  }
+  if (needsTutorEvaluation(row)) evaluateTutor(row)
+}
 
 onMounted(loadTrainings)
 </script>
@@ -152,6 +259,130 @@ onMounted(loadTrainings)
 .stat-card--alert {
   border-color: var(--color-warning) !important;
   background: linear-gradient(135deg, #fff, #fffbeb) !important;
+}
+
+/* 近期课程 */
+.schedule-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.schedule-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.schedule-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.schedule-subtitle {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.schedule-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.schedule-summary-item {
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-subtle);
+}
+
+.schedule-summary-item span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.schedule-summary-item strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-size: 22px;
+}
+
+.schedule-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.schedule-row {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 74px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.schedule-row:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 6px 16px rgba(79, 110, 242, 0.12);
+  transform: translateY(-1px);
+}
+
+.schedule-date {
+  display: flex;
+  height: 54px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.schedule-date span {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.schedule-date strong {
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.schedule-main {
+  min-width: 0;
+}
+
+.schedule-course {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-meta {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 /* 待处理横幅 */
@@ -261,4 +492,15 @@ onMounted(loadTrainings)
 .score-fail { color: var(--color-danger); }
 
 .action-group { display: flex; flex-wrap: wrap; gap: 6px; }
+
+@media (max-width: 900px) {
+  .stats-grid,
+  .schedule-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-panel-header {
+    flex-direction: column;
+  }
+}
 </style>
