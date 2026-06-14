@@ -68,8 +68,7 @@
             <el-select v-model="loginForm.role" placeholder="请选择您的角色" size="large" style="width:100%">
               <el-option label="👨‍🎓  学员" value="student" />
               <el-option label="👨‍🏫  导师" value="tutor" />
-              <el-option label="📋  台账管理员" value="admin" />
-              <el-option label="📊  管理者" value="manager" />
+              <el-option label="🛠️  管理者" value="admin" />
             </el-select>
           </div>
 
@@ -99,10 +98,7 @@
               <span>👨‍🏫</span> 导师 · 导师A
             </button>
             <button class="demo-chip" @click="fillDemo('admin')">
-              <span>📋</span> 台账用户
-            </button>
-            <button class="demo-chip" @click="fillDemo('manager')">
-              <span>📊</span> 管理者
+              <span>🛠️</span> 管理者
             </button>
           </div>
         </div>
@@ -113,8 +109,7 @@
           <div class="quick-links">
             <button class="quick-link" @click="router.push('/student/training')">学员端 →</button>
             <button class="quick-link" @click="router.push('/tutor/courseware')">导师端 →</button>
-            <button class="quick-link" @click="router.push('/admin/ledger')">台账管理 →</button>
-            <button class="quick-link" @click="router.push('/dashboard/overview')">管理者看板 →</button>
+            <button class="quick-link" @click="router.push('/admin/ledger')">管理后台 →</button>
           </div>
         </div>
       </div>
@@ -137,8 +132,7 @@ const loginForm = reactive({ username: '', password: '', role: '' })
 const demoUsers = {
   student: { id: 1, name: '学员A', role: 'student' },
   tutor:   { id: 1, name: '导师A', role: 'tutor' },
-  admin:   { id: 1, name: '台账用户', role: 'admin' },
-  manager: { id: 1, name: '管理者', role: 'manager' }
+  admin:   { id: 1, name: '管理者', role: 'admin' }
 }
 
 const fillDemo = (role) => {
@@ -160,7 +154,7 @@ const handleLogin = () => {
     userStore.setToken('mock-token-' + Date.now())
     userStore.setUserInfo(userInfo)
     ElMessage.success('登录成功')
-    const routeMap = { student: '/student', tutor: '/tutor', admin: '/admin', manager: '/dashboard' }
+    const routeMap = { student: '/student', tutor: '/tutor', admin: '/admin' }
     router.push(routeMap[loginForm.role] || '/student')
     loading.value = false
   }, 800)

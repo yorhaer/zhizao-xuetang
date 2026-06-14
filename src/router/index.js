@@ -3,7 +3,6 @@ import Login from '../views/Login.vue'
 import StudentLayout from '../layouts/StudentLayout.vue'
 import TutorLayout from '../layouts/TutorLayout.vue'
 import AdminLayout from '../layouts/AdminLayout.vue'
-import DashboardLayout from '../layouts/DashboardLayout.vue'
 
 const routes = [
   {
@@ -89,7 +88,7 @@ const routes = [
       }
     ]
   },
-  // 运营后台路由
+  // 管理后台路由（台账管理 + 数据看板合并）
   {
     path: '/admin',
     component: AdminLayout,
@@ -110,11 +109,6 @@ const routes = [
         component: () => import('../views/admin/TrainingPlan.vue')
       },
       {
-        path: 'execution',
-        name: 'AdminExecution',
-        component: () => import('../views/admin/PhotoUpload.vue')
-      },
-      {
         path: 'assessment',
         name: 'AdminAssessment',
         redirect: '/admin/ledger?tab=assessment'
@@ -130,40 +124,19 @@ const routes = [
         component: () => import('../views/admin/PersonnelManage.vue')
       },
       {
-        path: 'import',
-        name: 'AdminImport',
-        component: () => import('../views/admin/DataImport.vue')
-      },
-      {
-        path: 'photos',
-        name: 'AdminPhotos',
-        component: () => import('../views/admin/PhotoUpload.vue')
-      },
-      {
         path: 'export',
         name: 'AdminExport',
         component: () => import('../views/admin/DataExport.vue')
-      }
-    ]
-  },
-  // 管理者看板路由
-  {
-    path: '/dashboard',
-    component: DashboardLayout,
-    meta: { requiresAuth: true, role: 'manager' },
-    children: [
-      {
-        path: '',
-        redirect: '/dashboard/overview'
       },
+      // 数据看板（原 dashboard，迁移至管理后台）
       {
         path: 'overview',
-        name: 'DashboardOverview',
+        name: 'AdminOverview',
         component: () => import('../views/dashboard/Overview.vue')
       },
       {
         path: 'comparison',
-        name: 'DashboardComparison',
+        name: 'AdminComparison',
         component: () => import('../views/dashboard/Comparison.vue')
       }
     ]
@@ -181,7 +154,7 @@ router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   if (!token) {
     localStorage.setItem('token', 'mock-token-demo')
-    localStorage.setItem('userInfo', JSON.stringify({ id: 1, name: '演示用户', role: 'student' }))
+    localStorage.setItem('userInfo', JSON.stringify({ id: 1, name: '演示用户', role: 'admin' }))
   }
   next()
 })

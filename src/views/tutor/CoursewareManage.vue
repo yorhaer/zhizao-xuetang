@@ -121,6 +121,16 @@
               placeholder="搜索课程、内容、学员"
               class="search-input"
             />
+            <el-date-picker
+              v-model="logDateRange"
+              type="daterange"
+              value-format="YYYY-MM-DD"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              clearable
+              style="width: 280px"
+            />
             <el-segmented v-model="statusFilter" :options="filterOptions" />
           </div>
 
@@ -429,6 +439,7 @@ const trainings = ref([])
 const activeTab = ref('log')
 const keyword = ref('')
 const statusFilter = ref('全部')
+const logDateRange = ref([])
 const scheduleScope = ref('本周')
 const filterOptions = ['全部', '未开始', '已完成', '已考核', '已评价']
 const scheduleScopeOptions = ['本周', '本月']
@@ -556,7 +567,10 @@ const filteredTrainings = computed(() => {
     const matchesKeyword = text
       ? [item.courseName, item.trainingContent, item.students.join(' ')].join(' ').includes(text)
       : true
-    return matchesStatus && matchesKeyword
+    const matchesDate = logDateRange.value && logDateRange.value.length === 2
+      ? item.startDate >= logDateRange.value[0] && item.startDate <= logDateRange.value[1]
+      : true
+    return matchesStatus && matchesKeyword && matchesDate
   })
 })
 const teachingLedgerRows = computed(() => {

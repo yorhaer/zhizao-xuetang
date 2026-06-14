@@ -104,6 +104,22 @@
         <el-segmented v-model="statusFilter" :options="filterOptions" />
       </div>
 
+      <div class="history-filters">
+        <el-date-picker
+          v-model="historyDateRange"
+          type="daterange"
+          value-format="YYYY-MM-DD"
+          range-separator="至"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
+          clearable
+          style="width: 280px"
+        />
+        <span v-if="historyDateRange && historyDateRange.length" class="filter-tip">
+          共 {{ filteredTrainings.length }} 条记录
+        </span>
+      </div>
+
       <el-table :data="filteredTrainings" stripe style="width:100%" @row-click="() => {}">
         <el-table-column prop="courseName" label="培训主题" min-width="180" />
         <el-table-column label="导师" width="90">
@@ -165,6 +181,7 @@ const router = useRouter()
 const trainings = ref([])
 const currentStudentId = 1
 const statusFilter = ref('全部')
+const historyDateRange = ref([])
 const scheduleScope = ref('本周')
 const filterOptions = ['全部', '未开始', '已完成', '已考核', '已评价']
 const scheduleScopeOptions = ['本周', '本月']
@@ -173,7 +190,12 @@ const statusLabelMap = { 未开始: 'upcoming', 已完成: 'completed', 已考�
 
 const filteredTrainings = computed(() => {
   const status = statusLabelMap[statusFilter.value]
-  return status ? trainings.value.filter(item => item.status === status) : trainings.value
+  let list = status ? trainings.value.filter(item => item.status === status) : trainings.value
+  if (historyDateRange.value && historyDateRange.value.length === 2) {
+    const [start, end] = historyDateRange.value
+    list = list.filter(item => item.startDate >= start && item.startDate <= end)
+  }
+  return list
 })
 
 const coursewareCount = computed(() => trainings.value.reduce((sum, item) => sum + item.coursewares.length, 0))
@@ -441,6 +463,19 @@ onMounted(loadTrainings)
   white-space: nowrap;
 }
 .todo-action:hover { background: #f59e0b; color: white; }
+
+/* 历史记录筛选栏 */
+.history-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.filter-tip {
+  font-size: 13px;
+  color: var(--text-muted);
+}
 
 /* 区域卡片 */
 .section-card {

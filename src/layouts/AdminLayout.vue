@@ -5,7 +5,7 @@
         <div class="brand-icon">🎓</div>
         <div class="brand-text">
           <span class="brand-name">智造学堂</span>
-          <span class="brand-role">台账管理</span>
+          <span class="brand-role">管理后台</span>
         </div>
       </div>
 
@@ -18,28 +18,28 @@
           <span class="nav-icon">📅</span>
           <span class="nav-label">排班计划</span>
         </router-link>
-        <router-link to="/admin/execution" class="nav-item" active-class="nav-item--active">
-          <span class="nav-icon">📸</span>
-          <span class="nav-label">执行记录</span>
-        </router-link>
         <router-link to="/admin/evaluations" class="nav-item" active-class="nav-item--active">
           <span class="nav-icon">⭐</span>
-          <span class="nav-label">评价汇总</span>
+          <span class="nav-label">评分汇总</span>
         </router-link>
-
-        <div class="nav-divider"></div>
-
         <router-link to="/admin/personnel" class="nav-item" active-class="nav-item--active">
           <span class="nav-icon">👥</span>
           <span class="nav-label">人员管理</span>
         </router-link>
-        <router-link to="/admin/import" class="nav-item" active-class="nav-item--active">
-          <span class="nav-icon">📥</span>
-          <span class="nav-label">数据导入</span>
-        </router-link>
         <router-link to="/admin/export" class="nav-item" active-class="nav-item--active">
           <span class="nav-icon">📤</span>
-          <span class="nav-label">看板导出</span>
+          <span class="nav-label">报表导出</span>
+        </router-link>
+
+        <div class="nav-divider"></div>
+
+        <router-link to="/admin/overview" class="nav-item" active-class="nav-item--active">
+          <span class="nav-icon">📈</span>
+          <span class="nav-label">数据看板</span>
+        </router-link>
+        <router-link to="/admin/comparison" class="nav-item" active-class="nav-item--active">
+          <span class="nav-icon">🔀</span>
+          <span class="nav-label">对比分析</span>
         </router-link>
       </nav>
 
@@ -54,7 +54,7 @@
           <div class="user-avatar admin-avatar">{{ userStore.userName?.charAt(0) }}</div>
           <div class="user-info">
             <div class="user-name">{{ userStore.userName }}</div>
-            <div class="user-role">台账管理员</div>
+            <div class="user-role">管理者</div>
           </div>
           <button class="logout-btn" @click="handleLogout" title="退出">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
