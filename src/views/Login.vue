@@ -92,10 +92,10 @@
           </div>
           <div class="demo-chips">
             <button class="demo-chip" @click="fillDemo('student')">
-              <span>👨‍🎓</span> 学员 · 学员A
+              <span>👨‍🎓</span> 学员 · 张三（鑫泰）
             </button>
             <button class="demo-chip" @click="fillDemo('tutor')">
-              <span>👨‍🏫</span> 导师 · 导师A
+              <span>👨‍🏫</span> 师傅 · 宋师傅
             </button>
             <button class="demo-chip" @click="fillDemo('admin')">
               <span>🛠️</span> 管理者
@@ -130,8 +130,8 @@ const loading = ref(false)
 const loginForm = reactive({ username: '', password: '', role: '' })
 
 const demoUsers = {
-  student: { id: 1, name: '学员A', role: 'student' },
-  tutor:   { id: 1, name: '导师A', role: 'tutor' },
+  student: { id: 1, name: '张三（鑫泰）', role: 'student' },
+  tutor:   { id: 1, name: '宋师傅', role: 'tutor' },
   admin:   { id: 1, name: '管理者', role: 'admin' }
 }
 

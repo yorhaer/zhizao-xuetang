@@ -10,17 +10,17 @@
       </div>
 
       <nav class="sidebar-nav">
+        <router-link to="/tutor/checkin" class="nav-item" active-class="nav-item--active">
+          <span class="nav-icon">✏️</span>
+          <span class="nav-label">课程记录</span>
+        </router-link>
+        <router-link to="/tutor/summary" class="nav-item" active-class="nav-item--active">
+          <span class="nav-icon">👨‍🎓</span>
+          <span class="nav-label">学员档案</span>
+        </router-link>
         <router-link to="/tutor/courseware" class="nav-item" active-class="nav-item--active">
           <span class="nav-icon">📁</span>
-          <span class="nav-label">资料与授课</span>
-        </router-link>
-        <router-link to="/tutor/students" class="nav-item" active-class="nav-item--active">
-          <span class="nav-icon">👨‍🎓</span>
-          <span class="nav-label">学员评价</span>
-        </router-link>
-        <router-link to="/tutor/feedback" class="nav-item" active-class="nav-item--active">
-          <span class="nav-icon">💬</span>
-          <span class="nav-label">查看反馈</span>
+          <span class="nav-label">课件上传</span>
         </router-link>
         <router-link to="/tutor/profile" class="nav-item" active-class="nav-item--active">
           <span class="nav-icon">👤</span>

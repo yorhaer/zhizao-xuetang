@@ -14,72 +14,58 @@ const routes = [
     name: 'Login',
     component: Login
   },
-  // 学员端路由
+
+  // ── 学员端 ──────────────────────────────────
   {
     path: '/student',
     component: StudentLayout,
     meta: { requiresAuth: true, role: 'student' },
     children: [
-      {
-        path: '',
-        redirect: '/student/training'
-      },
+      { path: '', redirect: '/student/training' },
       {
         path: 'training',
         name: 'StudentTraining',
         component: () => import('../views/student/MyTraining.vue')
       },
       {
-        path: 'knowledge',
-        name: 'StudentKnowledge',
-        component: () => import('../views/student/KnowledgeLibrary.vue')
+        path: 'resources',
+        name: 'StudentResources',
+        component: () => import('../views/student/ResourceCenter.vue')
+      },
+      {
+        path: 'feedback',
+        name: 'StudentFeedback',
+        component: () => import('../views/student/TutorFeedback.vue')
       },
       {
         path: 'profile',
         name: 'StudentProfile',
         component: () => import('../views/ProfileCenter.vue')
-      },
-      {
-        path: 'courseware/:id',
-        name: 'CoursewareDetail',
-        component: () => import('../views/student/CoursewareDetail.vue')
-      },
-      {
-        path: 'assessment/:id',
-        name: 'AssessmentResult',
-        component: () => import('../views/student/AssessmentResult.vue')
-      },
-      {
-        path: 'evaluate/:id',
-        name: 'EvaluateTutor',
-        component: () => import('../views/student/EvaluateTutor.vue')
       }
     ]
   },
-  // 导师端路由
+
+  // ── 导师端 ──────────────────────────────────
   {
     path: '/tutor',
     component: TutorLayout,
     meta: { requiresAuth: true, role: 'tutor' },
     children: [
+      { path: '', redirect: '/tutor/checkin' },
       {
-        path: '',
-        redirect: '/tutor/courseware'
+        path: 'checkin',
+        name: 'TutorCheckin',
+        component: () => import('../views/tutor/CourseCheckin.vue')
+      },
+      {
+        path: 'summary',
+        name: 'TutorSummary',
+        component: () => import('../views/tutor/StudentSummary.vue')
       },
       {
         path: 'courseware',
         name: 'TutorCourseware',
-        component: () => import('../views/tutor/CoursewareManage.vue')
-      },
-      {
-        path: 'students',
-        name: 'TutorStudents',
-        component: () => import('../views/tutor/StudentEvaluate.vue')
-      },
-      {
-        path: 'feedback',
-        name: 'TutorFeedback',
-        component: () => import('../views/tutor/FeedbackView.vue')
+        component: () => import('../views/tutor/CoursewareUpload.vue')
       },
       {
         path: 'profile',
@@ -88,56 +74,38 @@ const routes = [
       }
     ]
   },
-  // 管理后台路由（台账管理 + 数据看板合并）
+
+  // ── 管理后台 ─────────────────────────────────
   {
     path: '/admin',
     component: AdminLayout,
     meta: { requiresAuth: true, role: 'admin' },
     children: [
-      {
-        path: '',
-        redirect: '/admin/ledger'
-      },
-      {
-        path: 'ledger',
-        name: 'AdminLedger',
-        component: () => import('../views/admin/LedgerWorkspace.vue')
-      },
-      {
-        path: 'training-plan',
-        name: 'AdminTrainingPlan',
-        component: () => import('../views/admin/TrainingPlan.vue')
-      },
-      {
-        path: 'assessment',
-        name: 'AdminAssessment',
-        redirect: '/admin/ledger?tab=assessment'
-      },
-      {
-        path: 'evaluations',
-        name: 'AdminEvaluations',
-        component: () => import('../views/admin/EvaluationSummary.vue')
-      },
+      { path: '', redirect: '/admin/personnel' },
       {
         path: 'personnel',
         name: 'AdminPersonnel',
         component: () => import('../views/admin/PersonnelManage.vue')
       },
       {
-        path: 'export',
-        name: 'AdminExport',
-        component: () => import('../views/admin/DataExport.vue')
-      },
-      // 数据看板（原 dashboard，迁移至管理后台）
-      {
-        path: 'overview',
-        name: 'AdminOverview',
-        component: () => import('../views/dashboard/Overview.vue')
+        path: 'schedule',
+        name: 'AdminSchedule',
+        component: () => import('../views/admin/SchedulePlan.vue')
       },
       {
-        path: 'comparison',
-        name: 'AdminComparison',
-        component: () => import('../views/dashboard/Comparison.vue')
+        path: 'course-log',
+        name: 'AdminCourseLog',
+        component: () => import('../views/admin/CourseLog.vue')
+      },
+      {
+        path: 'exam-archive',
+        name: 'AdminExamArchive',
+        component: () => import('../views/admin/ExamArchive.vue')
+      },
+      {
+        path: 'resources',
+        name: 'AdminResources',
+        component: () => import('../views/admin/ResourceLibrary.vue')
       }
     ]
   }
@@ -149,14 +117,13 @@ const router = createRouter({
 })
 
 // 路由守卫 - 原型阶段暂时禁用认证，方便查看所有页面
-router.beforeEach((to, from, next) => {
-  // 如果没有token，自动设置一个模拟token
+router.beforeEach((to, from) => {
   const token = localStorage.getItem('token')
   if (!token) {
     localStorage.setItem('token', 'mock-token-demo')
     localStorage.setItem('userInfo', JSON.stringify({ id: 1, name: '演示用户', role: 'admin' }))
   }
-  next()
+  return true
 })
 
 export default router

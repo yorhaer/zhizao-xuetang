@@ -399,6 +399,110 @@ export const trainingPlans = [
   }
 ]
 
+export const skillAssessmentSchemes = [
+  {
+    id: 'scheme-valve-basic',
+    name: '液压阀基础阶段考试',
+    studio: 'studio_a',
+    cycle: '2026-06',
+    skillName: '液压阀拆解与故障识别',
+    relatedTrainingIds: [1, 5, 6, 2],
+    assessmentDate: '2026-06-28',
+    passLine: 60,
+    practicalPassLine: 70,
+    requirePracticalPass: true,
+    weights: {
+      written: 30,
+      practical: 60,
+      classroom: 10
+    },
+    dimensions: [
+      { key: 'written', label: '笔试', desc: '结构原理、故障判断和安全规范' },
+      { key: 'practical', label: '实操', desc: '拆解步骤、工具使用、现场复盘' },
+      { key: 'classroom', label: '平时评价', desc: '每节课后导师评价的平均值' }
+    ]
+  },
+  {
+    id: 'scheme-pump-basic',
+    name: '柱塞泵故障判断阶段考试',
+    studio: 'studio_b',
+    cycle: '2026-06',
+    skillName: '柱塞泵参数判断与异常识别',
+    relatedTrainingIds: [3],
+    assessmentDate: '2026-06-24',
+    passLine: 60,
+    practicalPassLine: 65,
+    requirePracticalPass: true,
+    weights: {
+      written: 35,
+      practical: 55,
+      classroom: 10
+    },
+    dimensions: [
+      { key: 'written', label: '笔试', desc: '原理、参数和故障原因判断' },
+      { key: 'practical', label: '实操', desc: '压力调节、异常噪声定位、记录规范' },
+      { key: 'classroom', label: '平时评价', desc: '每节课后导师评价的平均值' }
+    ]
+  }
+]
+
+export const stageAssessments = [
+  {
+    id: 'stage-valve-basic-1',
+    schemeId: 'scheme-valve-basic',
+    studentId: 1,
+    writtenScore: 86,
+    practicalScore: 90,
+    classroomScore: 100,
+    remark: '拆解步骤稳定，能独立说明密封失效风险。'
+  },
+  {
+    id: 'stage-valve-basic-2',
+    schemeId: 'scheme-valve-basic',
+    studentId: 2,
+    writtenScore: 82,
+    practicalScore: 76,
+    classroomScore: 100,
+    remark: '实操达标，故障复盘表达还可继续加强。'
+  },
+  {
+    id: 'stage-valve-basic-3',
+    schemeId: 'scheme-valve-basic',
+    studentId: 3,
+    writtenScore: null,
+    practicalScore: null,
+    classroomScore: 0,
+    remark: '待完成阶段考试。'
+  },
+  {
+    id: 'stage-pump-basic-1',
+    schemeId: 'scheme-pump-basic',
+    studentId: 4,
+    writtenScore: 84,
+    practicalScore: 78,
+    classroomScore: 80,
+    remark: '参数判断通过，现场记录完整。'
+  },
+  {
+    id: 'stage-pump-basic-2',
+    schemeId: 'scheme-pump-basic',
+    studentId: 5,
+    writtenScore: 76,
+    practicalScore: 61,
+    classroomScore: 0,
+    remark: '综合分接近达标，但实操单项未达到配置线。'
+  },
+  {
+    id: 'stage-pump-basic-3',
+    schemeId: 'scheme-pump-basic',
+    studentId: 6,
+    writtenScore: 58,
+    practicalScore: 52,
+    classroomScore: 0,
+    remark: '需补考并安排实操辅导。'
+  }
+]
+
 export function getStudioName(studioId) {
   return studios.find(studio => studio.id === studioId)?.name || '全部工作室'
 }
@@ -437,7 +541,6 @@ export function hasCompleteTutorStudentEvaluations(plan) {
 export function isTrainingAutoClosed(plan) {
   if (!['completed', 'assessed', 'evaluated'].includes(plan.status)) return false
   return hasExecutionMaterials(plan)
-    && hasCompleteAssessments(plan)
     && hasCompleteStudentTutorEvaluations(plan)
     && hasCompleteTutorStudentEvaluations(plan)
 }
@@ -461,26 +564,118 @@ export function ratingToScore(rating) {
   return scoreMap[rating] || 0
 }
 
+export function getAssessmentScheme(schemeId) {
+  return skillAssessmentSchemes.find(scheme => scheme.id === schemeId)
+}
+
+export function getSchemeWeightTotal(scheme) {
+  if (!scheme) return 0
+  return Object.values(scheme.weights).reduce((sum, value) => sum + value, 0)
+}
+
+export function calculateStageFinalScore(record, scheme) {
+  if (!record || !scheme) return null
+  const scores = {
+    written: record.writtenScore,
+    practical: record.practicalScore,
+    classroom: record.classroomScore
+  }
+  const hasMissingScore = Object.entries(scheme.weights).some(([key, weight]) =>
+    weight > 0 && typeof scores[key] !== 'number'
+  )
+  if (hasMissingScore) return null
+
+  const total = Object.entries(scheme.weights).reduce((sum, [key, weight]) =>
+    sum + scores[key] * (weight / 100), 0
+  )
+  return Math.round(total)
+}
+
+export function getStageAssessmentResult(record, scheme) {
+  const finalScore = calculateStageFinalScore(record, scheme)
+  if (finalScore === null) return '待考核'
+  if (scheme.requirePracticalPass && record.practicalScore < scheme.practicalPassLine) return '实操待补'
+  return finalScore >= scheme.passLine ? '通过' : '未通过'
+}
+
+export function enrichStageAssessment(record) {
+  const scheme = getAssessmentScheme(record.schemeId)
+  const finalScore = calculateStageFinalScore(record, scheme)
+  return {
+    ...record,
+    scheme,
+    finalScore,
+    result: getStageAssessmentResult(record, scheme)
+  }
+}
+
+export function getStageAssessmentsForStudent(studentId) {
+  return stageAssessments
+    .filter(record => record.studentId === studentId)
+    .map(enrichStageAssessment)
+    .sort((a, b) => b.scheme.assessmentDate.localeCompare(a.scheme.assessmentDate))
+}
+
+export function getStageAssessmentsForTraining(trainingId, studentId) {
+  return stageAssessments
+    .map(enrichStageAssessment)
+    .filter(record =>
+      record.studentId === studentId &&
+      record.scheme.relatedTrainingIds.includes(trainingId)
+    )
+    .sort((a, b) => b.scheme.assessmentDate.localeCompare(a.scheme.assessmentDate))
+}
+
+export function getClassroomPerformanceForStudent(studentId) {
+  const ratings = trainingPlans.flatMap(plan =>
+    plan.evaluations
+      .filter(item => item.type === 'tutor_to_student' && item.studentId === studentId)
+      .map(item => ({
+        ...item,
+        courseName: plan.courseName,
+        startDate: plan.startDate,
+        score: ratingToScore(item.rating)
+      }))
+  )
+  const scores = ratings.map(item => item.score)
+
+  return {
+    records: ratings,
+    avgScore: scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) : 0,
+    count: ratings.length
+  }
+}
+
 export function getStudentProfileSummary(studentId) {
   const relatedTrainings = trainingPlans
     .filter(plan => plan.studentIds.includes(studentId))
     .map(plan => ({
       ...plan,
       assessment: plan.assessments.find(item => item.studentId === studentId),
+      dailyEvaluation: plan.evaluations.find(item => item.type === 'tutor_to_student' && item.studentId === studentId),
       closed: isTrainingClosed(plan)
     }))
     .sort((a, b) => b.startDate.localeCompare(a.startDate))
   const scores = relatedTrainings
     .map(plan => plan.assessment?.score)
     .filter(score => typeof score === 'number')
+  const classroomPerformance = getClassroomPerformanceForStudent(studentId)
+  const stageRecords = getStageAssessmentsForStudent(studentId)
+  const latestStageAssessment = stageRecords[0]
 
   return {
     trainings: relatedTrainings,
+    stageAssessments: stageRecords,
+    classroomPerformance,
+    latestStageAssessment,
     latestTraining: relatedTrainings[0],
     trainingCount: relatedTrainings.length,
     closedCount: relatedTrainings.filter(plan => plan.closed).length,
     avgScore: scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) : 0,
     passCount: scores.filter(score => score >= 60).length,
+    stageFinalScore: latestStageAssessment?.finalScore ?? 0,
+    practicalScore: latestStageAssessment?.practicalScore ?? 0,
+    classroomScore: classroomPerformance.avgScore,
     photos: [...new Set(relatedTrainings.flatMap(plan => plan.photos))]
   }
 }
@@ -530,10 +725,9 @@ export function getTrainingGaps(plan) {
   const gaps = []
   const executed = ['completed', 'assessed', 'evaluated'].includes(plan.status)
   const assessmentStage = ['completed', 'assessed', 'evaluated'].includes(plan.status)
-  if (plan.status === 'completed' && !hasCompleteAssessments(plan)) gaps.push('待录考核')
   if (executed && !hasExecutionMaterials(plan)) gaps.push('缺执行资料')
   if (assessmentStage && !hasCompleteStudentTutorEvaluations(plan)) gaps.push('缺学员评价')
-  if (assessmentStage && !hasCompleteTutorStudentEvaluations(plan)) gaps.push('缺导师评价')
+  if (assessmentStage && !hasCompleteTutorStudentEvaluations(plan)) gaps.push('缺平时评价')
   return gaps
 }
 
@@ -576,9 +770,24 @@ export function getTodoItems(plans = trainingPlans) {
 export function getDashboardStats(plans = trainingPlans) {
   const completed = plans.filter(plan => isTrainingClosed(plan))
   const assessed = plans.filter(plan => ['assessed', 'evaluated'].includes(plan.status))
-  const scores = plans.flatMap(plan => plan.assessments.map(item => item.score))
+  const relatedTrainingIds = new Set(plans.map(plan => plan.id))
+  const relatedStageRecords = stageAssessments
+    .map(enrichStageAssessment)
+    .filter(record => record.scheme.relatedTrainingIds.some(id => relatedTrainingIds.has(id)))
+  const stageScores = relatedStageRecords
+    .map(record => record.finalScore)
+    .filter(score => typeof score === 'number')
+  const courseScores = plans.flatMap(plan => plan.assessments.map(item => item.score))
+  const scores = stageScores.length ? stageScores : courseScores
   const ratings = plans.flatMap(plan => plan.evaluations.filter(item => item.type === 'student_to_tutor').map(item => item.rating))
-  const passCount = plans.flatMap(plan => plan.assessments).filter(item => item.score >= 60).length
+  const dailyScores = plans.flatMap(plan =>
+    plan.evaluations
+      .filter(item => item.type === 'tutor_to_student')
+      .map(item => ratingToScore(item.rating))
+  )
+  const passCount = stageScores.length
+    ? relatedStageRecords.filter(item => item.result === '通过').length
+    : plans.flatMap(plan => plan.assessments).filter(item => item.score >= 60).length
   const todoCount = getTodoItems(plans).length
 
   return {
@@ -589,6 +798,8 @@ export function getDashboardStats(plans = trainingPlans) {
     passCount,
     avgScore: scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0,
     avgRating: ratings.length ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length : 0,
+    dailyAvgScore: dailyScores.length ? dailyScores.reduce((sum, score) => sum + score, 0) / dailyScores.length : 0,
+    dailyEvaluationCount: dailyScores.length,
     todoCount
   }
 }
@@ -617,7 +828,13 @@ export function getTutorRankings() {
 }
 
 export function getAssessmentDistribution(plans = trainingPlans) {
-  const scores = plans.flatMap(plan => plan.assessments.map(item => item.score))
+  const relatedTrainingIds = new Set(plans.map(plan => plan.id))
+  const stageScores = stageAssessments
+    .map(enrichStageAssessment)
+    .filter(record => record.scheme.relatedTrainingIds.some(id => relatedTrainingIds.has(id)))
+    .map(record => record.finalScore)
+    .filter(score => typeof score === 'number')
+  const scores = stageScores.length ? stageScores : plans.flatMap(plan => plan.assessments.map(item => item.score))
   const buckets = [
     { label: '优秀(90+)', min: 90, max: 100, color: '#67c23a' },
     { label: '良好(80-89)', min: 80, max: 89, color: '#409eff' },

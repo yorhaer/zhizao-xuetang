@@ -15,9 +15,13 @@
           <span class="nav-icon">📋</span>
           <span class="nav-label">我的培训</span>
         </router-link>
-        <router-link to="/student/knowledge" class="nav-item" active-class="nav-item--active">
+        <router-link to="/student/resources" class="nav-item" active-class="nav-item--active">
           <span class="nav-icon">📚</span>
-          <span class="nav-label">知识库</span>
+          <span class="nav-label">资料中心</span>
+        </router-link>
+        <router-link to="/student/feedback" class="nav-item" active-class="nav-item--active">
+          <span class="nav-icon">💬</span>
+          <span class="nav-label">导师评价</span>
         </router-link>
         <router-link to="/student/profile" class="nav-item" active-class="nav-item--active">
           <span class="nav-icon">👤</span>

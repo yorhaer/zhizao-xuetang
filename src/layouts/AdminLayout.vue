@@ -10,36 +10,25 @@
       </div>
 
       <nav class="sidebar-nav">
-        <router-link to="/admin/ledger" class="nav-item" active-class="nav-item--active">
-          <span class="nav-icon">📊</span>
-          <span class="nav-label">培训台账</span>
-        </router-link>
-        <router-link to="/admin/training-plan" class="nav-item" active-class="nav-item--active">
-          <span class="nav-icon">📅</span>
-          <span class="nav-label">排班计划</span>
-        </router-link>
-        <router-link to="/admin/evaluations" class="nav-item" active-class="nav-item--active">
-          <span class="nav-icon">⭐</span>
-          <span class="nav-label">评分汇总</span>
-        </router-link>
         <router-link to="/admin/personnel" class="nav-item" active-class="nav-item--active">
           <span class="nav-icon">👥</span>
           <span class="nav-label">人员管理</span>
         </router-link>
-        <router-link to="/admin/export" class="nav-item" active-class="nav-item--active">
-          <span class="nav-icon">📤</span>
-          <span class="nav-label">报表导出</span>
+        <router-link to="/admin/schedule" class="nav-item" active-class="nav-item--active">
+          <span class="nav-icon">📅</span>
+          <span class="nav-label">排班管理</span>
         </router-link>
-
-        <div class="nav-divider"></div>
-
-        <router-link to="/admin/overview" class="nav-item" active-class="nav-item--active">
-          <span class="nav-icon">📈</span>
-          <span class="nav-label">数据看板</span>
+        <router-link to="/admin/course-log" class="nav-item" active-class="nav-item--active">
+          <span class="nav-icon">📋</span>
+          <span class="nav-label">课程记录</span>
         </router-link>
-        <router-link to="/admin/comparison" class="nav-item" active-class="nav-item--active">
-          <span class="nav-icon">🔀</span>
-          <span class="nav-label">对比分析</span>
+        <router-link to="/admin/exam-archive" class="nav-item" active-class="nav-item--active">
+          <span class="nav-icon">🏆</span>
+          <span class="nav-label">成绩归档</span>
+        </router-link>
+        <router-link to="/admin/resources" class="nav-item" active-class="nav-item--active">
+          <span class="nav-icon">📁</span>
+          <span class="nav-label">资料库</span>
         </router-link>
       </nav>
 

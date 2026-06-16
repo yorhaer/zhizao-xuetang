@@ -97,10 +97,10 @@
                 <div class="muted">闭环 {{ row.closedCount }} 场</div>
               </template>
             </el-table-column>
-            <el-table-column label="平均成绩" width="110">
+            <el-table-column label="阶段考试" width="120">
               <template #default="{ row }">
-                <span :class="['score-text', getScoreClass(row.avgScore)]">
-                  {{ row.avgScore ? `${row.avgScore}分` : '暂无' }}
+                <span :class="['score-text', getScoreClass(row.stageFinalScore)]">
+                  {{ row.stageFinalScore ? `${row.stageFinalScore}分` : '暂无' }}
                 </span>
               </template>
             </el-table-column>
@@ -197,93 +197,119 @@
     >
       <template v-if="selectedStudent">
         <div class="profile-header">
-          <div class="profile-photo">{{ selectedStudent.name.slice(-1) }}</div>
-          <div class="profile-main">
+          <div class="profile-photo-container" style="width: 76px; height: 96px; border-radius: var(--radius-md); overflow: hidden; border: 2px solid var(--border-light); flex-shrink: 0; margin-right: 14px; display: inline-block; vertical-align: top;">
+            <img v-if="selectedStudentProfile.photo" :src="selectedStudentProfile.photo" style="width: 100%; height: 100%; object-fit: cover;" />
+            <div v-else class="profile-photo" style="width: 100%; height: 100%; border-radius: 0; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #409eff, #10b981); color: white;">{{ selectedStudent.name.slice(-1) }}</div>
+          </div>
+          <div class="profile-main" style="display: inline-block; vertical-align: top; width: calc(100% - 100px);">
             <div class="profile-name-row">
-              <h3>{{ selectedStudent.name }}</h3>
-              <el-tag>{{ selectedStudent.roleTitle }}</el-tag>
+              <h3 style="margin: 0; font-size: 20px; font-weight: 700;">{{ selectedStudent.name }}</h3>
+              <el-tag>{{ selectedStudent.roleTitle || '技术工' }}</el-tag>
             </div>
-            <div class="profile-meta">
+            <div class="profile-meta" style="margin-top: 6px; color: var(--text-secondary); font-size: 13px;">
               {{ selectedStudent.company }} · {{ selectedStudent.phone }} · {{ selectedStudent.studio === 'studio_a' ? '一号工作室' : '二号工作室' }}
             </div>
-            <div class="tag-row">
-              <el-tag v-for="tag in selectedStudent.skillTags" :key="tag" size="small" effect="plain">
-                {{ tag }}
-              </el-tag>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
+              📅 入职时间：{{ selectedStudentProfile.entryDate }}
             </div>
           </div>
         </div>
 
-        <el-row :gutter="12" class="profile-stats">
+        <el-row :gutter="12" class="profile-stats" style="margin-top: 18px;">
           <el-col :span="6">
             <el-card shadow="never">
-              <el-statistic title="培训场次" :value="studentProfile.trainingCount" />
+              <el-statistic title="培训场次" :value="selectedStudentTrainings.length" />
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card shadow="never">
-              <el-statistic title="闭环场次" :value="studentProfile.closedCount" />
-            </el-card>
-          </el-col>
-          <el-col :span="6">
-            <el-card shadow="never">
-              <el-statistic title="平均成绩" :value="studentProfile.avgScore || 0">
+              <el-statistic title="最终得分" :value="studentProfile.stageFinalScore || 0">
                 <template #suffix>分</template>
               </el-statistic>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card shadow="never">
-              <el-statistic title="通过次数" :value="studentProfile.passCount" />
+              <el-statistic title="实操成绩" :value="studentProfile.practicalScore || 0">
+                <template #suffix>分</template>
+              </el-statistic>
+            </el-card>
+          </el-col>
+          <el-col :span="6">
+            <el-card shadow="never">
+              <el-statistic title="平时评价" :value="studentProfile.classroomScore || 0">
+                <template #suffix>分</template>
+              </el-statistic>
             </el-card>
           </el-col>
         </el-row>
 
-        <el-card shadow="never" class="profile-section">
+        <el-card shadow="never" class="profile-section" v-if="studentProfile.latestStageAssessment" style="margin-top: 14px;">
           <template #header>
             <div class="card-header">
-              <span>照片与简历</span>
-              <el-tag size="small" type="info">原型占位</el-tag>
+              <span>阶段考试结论</span>
+              <el-tag :type="getResultType(studentProfile.latestStageAssessment.result)">
+                {{ studentProfile.latestStageAssessment.result }}
+              </el-tag>
             </div>
           </template>
-          <el-descriptions :column="1" border>
-            <el-descriptions-item label="简历摘要">{{ selectedStudent.resumeSummary }}</el-descriptions-item>
-            <el-descriptions-item label="证书">
-              <el-tag v-for="cert in selectedStudent.certificates" :key="cert" size="small" class="inline-tag">
-                {{ cert }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="照片材料">
-              <span v-if="studentProfile.photos.length">{{ studentProfile.photos.join('、') }}</span>
-              <span v-else class="muted">暂无培训照片归档</span>
-            </el-descriptions-item>
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="考核方案">{{ studentProfile.latestStageAssessment.scheme.name }}</el-descriptions-item>
+            <el-descriptions-item label="技能项目">{{ studentProfile.latestStageAssessment.scheme.skillName }}</el-descriptions-item>
+            <el-descriptions-item label="笔试">{{ formatScore(studentProfile.latestStageAssessment.writtenScore) }}</el-descriptions-item>
+            <el-descriptions-item label="实操">{{ formatScore(studentProfile.latestStageAssessment.practicalScore) }}</el-descriptions-item>
+            <el-descriptions-item label="平时评价">{{ formatScore(studentProfile.latestStageAssessment.classroomScore) }}</el-descriptions-item>
+            <el-descriptions-item label="综合分">{{ formatScore(studentProfile.latestStageAssessment.finalScore) }}</el-descriptions-item>
+            <el-descriptions-item label="备注" :span="2">{{ studentProfile.latestStageAssessment.remark }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
 
-        <el-card shadow="never" class="profile-section">
+        <el-card shadow="never" class="profile-section" style="margin-top: 14px;">
           <template #header>
             <div class="card-header">
-              <span>培训与成绩</span>
+              <span>照片与附件材料</span>
+              <el-tag size="small" type="info">学员档案材料</el-tag>
+            </div>
+          </template>
+          <div v-if="!selectedStudentProfile.attachments || selectedStudentProfile.attachments.length === 0" class="muted" style="text-align: center; padding: 14px; font-size: 12px;">
+            该学员暂未上传任何个人照片或附件文件。
+          </div>
+          <div v-else style="display: flex; flex-direction: column; gap: 8px;">
+            <div v-for="(file, idx) in selectedStudentProfile.attachments" :key="idx" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-surface-subtle); border: 1px solid var(--border-light); border-radius: var(--radius-md);">
+              <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                <span>📄</span>
+                <div style="display: flex; flex-direction: column; min-width: 0;">
+                  <span style="font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" :title="file.name">{{ file.name }}</span>
+                  <span style="font-size: 11px; color: var(--text-muted);">{{ file.size }} · {{ file.date }}</span>
+                </div>
+              </div>
+              <el-button size="small" text type="primary" @click="downloadAttachment(file)">下载</el-button>
+            </div>
+          </div>
+        </el-card>
+
+        <el-card shadow="never" class="profile-section" style="margin-top: 14px;">
+          <template #header>
+            <div class="card-header">
+              <span>培训与平时评价</span>
               <span class="muted">按日期倒序</span>
             </div>
           </template>
-          <el-table :data="studentProfile.trainings" stripe size="small" style="width: 100%">
+          <el-table :data="selectedStudentTrainings" stripe size="small" style="width: 100%">
             <el-table-column prop="courseName" label="培训主题" min-width="180" show-overflow-tooltip />
             <el-table-column prop="startDate" label="日期" width="110" />
             <el-table-column prop="tutor" label="导师" width="90" />
-            <el-table-column label="成绩" width="100">
+            <el-table-column label="平时评价" width="100">
               <template #default="{ row }">
-                <span v-if="row.assessment" :class="['score-text', getScoreClass(row.assessment.score)]">
-                  {{ row.assessment.score }}分
+                <span v-if="row.dailyEvaluation" :class="['score-text', getScoreClass(ratingToScore(row.dailyEvaluation.rating))]">
+                  {{ ratingToScore(row.dailyEvaluation.rating) }}分
                 </span>
-                <span v-else class="muted">未录入</span>
+                <span v-else class="muted">暂无</span>
               </template>
             </el-table-column>
-            <el-table-column label="结果" width="90">
+            <el-table-column label="星级" width="90">
               <template #default="{ row }">
-                <el-tag v-if="row.assessment" :type="row.assessment.score >= 60 ? 'success' : 'danger'" size="small">
-                  {{ row.assessment.result }}
-                </el-tag>
+                <el-rate v-if="row.dailyEvaluation" v-model="row.dailyEvaluation.rating" disabled size="small" />
                 <span v-else class="muted">-</span>
               </template>
             </el-table-column>
@@ -294,7 +320,7 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="assessment.remark" label="备注" min-width="160" show-overflow-tooltip />
+            <el-table-column prop="dailyEvaluation.comment" label="评价说明" min-width="160" show-overflow-tooltip />
           </el-table>
         </el-card>
       </template>
@@ -381,7 +407,7 @@
             <el-table-column label="学员" min-width="140" show-overflow-tooltip>
               <template #default="{ row }">{{ row.students.join('、') }}</template>
             </el-table-column>
-            <el-table-column label="平均成绩" width="100">
+            <el-table-column label="单课均分" width="100">
               <template #default="{ row }">
                 <span v-if="row.avgScore" :class="['score-text', getScoreClass(row.avgScore)]">
                   {{ row.avgScore }}分
@@ -411,7 +437,8 @@ import {
   students,
   trainingPlans,
   getStudentProfileSummary,
-  getTutorProfileSummary
+  getTutorProfileSummary,
+  ratingToScore
 } from '../../api/mockData'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
@@ -474,10 +501,29 @@ const currentStudents = computed(() => {
   return students.filter(s => s.studio === userStore.currentStudio)
 })
 
-const studentRows = computed(() => currentStudents.value.map(student => ({
-  ...student,
-  ...getStudentSummary(student.id)
-})))
+const studentRows = computed(() => currentStudents.value.map(student => {
+  const listStr = localStorage.getItem('zhizao_excel_groups')
+  let completedCount = 0
+  let totalCount = 0
+  if (listStr) {
+    const list = JSON.parse(listStr)
+    list.forEach(group => {
+      group.rows.forEach(r => {
+        if (r.trainee === student.name) {
+          totalCount++
+          if (r.completedText === '√') completedCount++
+        }
+      })
+    })
+  }
+  const summary = getStudentSummary(student.id)
+  return {
+    ...student,
+    ...summary,
+    trainingCount: totalCount || summary.trainingCount || 0,
+    closedCount: completedCount || summary.closedCount || 0
+  }
+}))
 
 const tutorRows = computed(() => currentTutors.value.map(tutor => ({
   ...tutor,
@@ -489,9 +535,77 @@ const studentProfile = computed(() => selectedStudent.value ? getStudentSummary(
   closedCount: 0,
   avgScore: 0,
   passCount: 0,
+  stageFinalScore: 0,
+  practicalScore: 0,
+  classroomScore: 0,
+  latestStageAssessment: null,
+  stageAssessments: [],
+  classroomPerformance: { records: [], avgScore: 0, count: 0 },
   photos: [],
   trainings: []
 })
+
+const selectedStudentProfile = computed(() => {
+  if (!selectedStudent.value) return { entryDate: '2025-09-01', photo: '', attachments: [] }
+  try {
+    const override = JSON.parse(localStorage.getItem(`profile:student:${selectedStudent.value.id}`) || '{}')
+    const defaultDates = {
+      '学员A': '2025-09-01',
+      '学员B': '2025-10-01',
+      '学员C': '2025-11-01',
+      '学员D': '2025-12-01',
+      '学员E': '2026-01-01',
+      '学员F': '2026-02-01',
+      '张三（鑫泰）': '2025-09-15',
+      '李四（鑫悦）': '2025-10-15',
+      '王五（盛泰）': '2025-11-15'
+    }
+    return {
+      entryDate: defaultDates[selectedStudent.value.name] || '2025-09-01',
+      photo: '',
+      attachments: [],
+      ...override
+    }
+  } catch {
+    return { entryDate: '2025-09-01', photo: '', attachments: [] }
+  }
+})
+
+const selectedStudentTrainings = computed(() => {
+  if (!selectedStudent.value) return []
+  const listStr = localStorage.getItem('zhizao_excel_groups')
+  if (!listStr) return studentProfile.value.trainings || []
+  
+  const list = JSON.parse(listStr)
+  const result = []
+  list.forEach(group => {
+    group.rows.forEach((row, rowIndex) => {
+      if (row.trainee === selectedStudent.value.name && row.completedText === '√') {
+        result.push({
+          id: `${group.id}-${rowIndex}`,
+          courseName: group.trainingTopic,
+          startDate: row.trainingDate || '2026-06-15',
+          tutor: group.trainer,
+          dailyEvaluation: row.remark ? { rating: row.rating || 0, comment: row.remark } : null,
+          closed: row.completedText === '√'
+        })
+      }
+    })
+  })
+  
+  result.sort((a, b) => b.startDate.localeCompare(a.startDate))
+  return result.length > 0 ? result : (studentProfile.value.trainings || [])
+})
+
+const downloadAttachment = (file) => {
+  const link = document.createElement('a')
+  link.href = file.url
+  link.download = file.name
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  ElMessage.success(`正在下载「${file.name}」`)
+}
 
 const tutorProfile = computed(() => selectedTutor.value ? getTutorSummary(selectedTutor.value.id) : {
   trainingCount: 0,
@@ -525,6 +639,15 @@ const getScoreClass = (score) => {
   if (score >= 60) return 'score-pass'
   return 'score-fail'
 }
+
+const getResultType = (result) => {
+  if (result === '通过') return 'success'
+  if (result === '实操待补') return 'warning'
+  if (result === '未通过') return 'danger'
+  return 'info'
+}
+
+const formatScore = (score) => typeof score === 'number' ? `${score}分` : '待录入'
 
 // 导师操作
 const openTutorDialog = () => {

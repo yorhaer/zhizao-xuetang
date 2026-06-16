@@ -35,7 +35,7 @@ export const closureFieldDefinitions = [
   { key: 'assessmentResult', label: '考核结果', scope: 'person', type: 'status', merged: false, enabled: true },
   { key: 'assessmentRemark', label: '考核备注', scope: 'person', type: 'text', merged: false, enabled: true },
   { key: 'studentToTutorEvaluation', label: '学员评导师', scope: 'person', type: 'status', merged: false, enabled: true },
-  { key: 'tutorToStudentEvaluation', label: '导师评学员', scope: 'person', type: 'status', merged: false, enabled: true },
+  { key: 'tutorToStudentEvaluation', label: '平时评价', scope: 'person', type: 'status', merged: false, enabled: true },
   { key: 'evaluationSummary', label: '评价摘要', scope: 'person', type: 'text', merged: false, enabled: true },
   { key: 'coursewareStatus', label: '课件状态', scope: 'group', type: 'status', merged: true, enabled: true },
   { key: 'coursewareList', label: '课件清单', scope: 'group', type: 'text', merged: true, enabled: true }
@@ -309,7 +309,7 @@ export const getClosureSummary = (group) => {
 
   if (missingAssessments) gaps.push(`缺考核${missingAssessments}人`)
   if (missingStudentEvaluations) gaps.push(`缺学员评导师${missingStudentEvaluations}人`)
-  if (missingTutorEvaluations) gaps.push(`缺导师评学员${missingTutorEvaluations}人`)
+  if (missingTutorEvaluations) gaps.push(`缺平时评价${missingTutorEvaluations}人`)
   if (!coursewareCount) gaps.push('缺课件')
 
   return {
